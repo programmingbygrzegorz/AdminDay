@@ -1,0 +1,15 @@
+# Python / MkDocs
+.venv/
+__pycache__/
+site/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Never commit raw evidence before anonymization
+raw/
+*.raw.log
+*.raw.txt

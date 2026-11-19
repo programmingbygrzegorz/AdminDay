@@ -1,0 +1,55 @@
+<svg class="ad-svg ad-arch" viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architektura środowiska (zanonimizowana)">
+<defs>
+<marker id="m-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="a-head"/></marker>
+<marker id="m-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="a-head-hot"/></marker>
+</defs>
+<rect x="380" y="12" width="200" height="52" rx="26" class="a-box"/>
+<text x="480" y="36" text-anchor="middle" class="a-name">Internet</text>
+<text x="480" y="54" text-anchor="middle" class="a-sub">mieszkańcy · redaktorzy · boty</text>
+<rect x="716" y="12" width="224" height="52" rx="8" class="a-box"/>
+<text x="732" y="35" class="a-name">Monitoring</text>
+<text x="732" y="53" class="a-sub">GET / co 60 s · timeout 15 s</text>
+<path d="M716 40 L652 40 L652 128 L632 128" class="a-ln" marker-end="url(#m-a)"/>
+<path d="M480 64 L480 100" class="a-ln" marker-end="url(#m-a)"/>
+<rect x="330" y="102" width="300" height="60" rx="8" class="a-box-acc"/>
+<text x="346" y="127" class="a-name">Firewall / load balancer</text>
+<text x="346" y="147" class="a-sub">VIP · SNAT na adres wewnętrzny</text>
+<path d="M420 162 L300 220" class="a-ln" marker-end="url(#m-a)"/>
+<path d="M540 162 L660 220" class="a-ln" marker-end="url(#m-a)"/>
+<rect x="130" y="222" width="300" height="112" rx="8" class="a-box"/>
+<text x="146" y="248" class="a-name">web01</text>
+<text x="146" y="270" class="a-sub">Apache + PHP-FPM (max 50)</text>
+<text x="146" y="290" class="a-hot">2 vCPU · 1,7 GB RAM · swap</text>
+<text x="146" y="312" class="a-hot">+ zadania cron aplikacji</text>
+<rect x="530" y="222" width="280" height="112" rx="8" class="a-box"/>
+<text x="546" y="248" class="a-name">web02</text>
+<text x="546" y="270" class="a-sub">Apache + PHP-FPM (max 50)</text>
+<text x="546" y="290" class="a-hot">2 vCPU · 1,7 GB RAM · swap</text>
+<text x="546" y="312" class="a-sub">bez zadań cron</text>
+<rect x="832" y="228" width="118" height="78" rx="8" class="a-box"/>
+<text x="846" y="254" class="a-name">cache01</text>
+<text x="846" y="274" class="a-sub">Redis</text>
+<text x="846" y="292" class="a-sub">tylko sesje PHP</text>
+<path d="M280 334 L280 356 L891 356 L891 308" class="a-ln-dash"/>
+<path d="M700 334 L700 356" class="a-ln-dash"/>
+<text x="740" y="350" class="a-label">sesje</text>
+<path d="M210 334 L200 428" class="a-ln-hot a-flow" marker-end="url(#m-h)"/>
+<path d="M600 334 L280 428" class="a-ln-hot a-flow" marker-end="url(#m-h)"/>
+<text x="436" y="398" class="a-label-hot">100% zapytań SQL + pliki (GlusterFS)</text>
+<rect x="40" y="414" width="900" height="176" rx="12" class="a-cluster"/>
+<text x="56" y="582" class="a-label">klaster MariaDB Galera · 3 pełne kopie danych</text>
+<rect x="66" y="434" width="268" height="126" rx="8" class="a-box-hot"/>
+<circle cx="316" cy="452" r="6" class="a-pulse"/>
+<text x="82" y="460" class="a-name">db01</text>
+<text x="82" y="482" class="a-sub">MariaDB 10.11 + GlusterFS</text>
+<text x="82" y="504" class="a-hot">bufor InnoDB 128 MB / 26 GB</text>
+<text x="82" y="526" class="a-hot">2 vCPU · 3,7 GB RAM · load 2,4–4,4</text>
+<rect x="366" y="434" width="268" height="126" rx="8" class="a-box-dim"/>
+<text x="382" y="460" class="a-name">db02</text>
+<text x="382" y="482" class="a-sub">replika · bez ruchu aplikacji</text>
+<rect x="666" y="434" width="268" height="126" rx="8" class="a-box-dim"/>
+<text x="682" y="460" class="a-name">db03</text>
+<text x="682" y="482" class="a-sub">replika · bez ruchu aplikacji</text>
+<path d="M336 497 L364 497" class="a-ln-rep" marker-start="url(#m-a)" marker-end="url(#m-a)"/>
+<path d="M636 497 L664 497" class="a-ln-rep" marker-start="url(#m-a)" marker-end="url(#m-a)"/>
+</svg>
