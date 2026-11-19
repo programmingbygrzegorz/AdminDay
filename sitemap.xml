@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/about/anonymization/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/about/anonymization/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/about/anonymization/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/incidents/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/incidents/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/incidents/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/workdays/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/workdays/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/workdays/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/workdays/day-001-cms-db-saturation/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/workdays/day-001-cms-db-saturation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/workdays/day-001-cms-db-saturation/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/en/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/"/>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/en/about/anonymization/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/about/anonymization/"/>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/about/anonymization/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/en/incidents/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/incidents/"/>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/incidents/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/en/workdays/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/workdays/"/>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/workdays/"/>
+    </url>
+    <url>
+        <loc>https://programmingbygrzegorz.github.io/AdminDay/en/workdays/day-001-cms-db-saturation/</loc>
+        <lastmod>2026-11-19</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://programmingbygrzegorz.github.io/AdminDay/en/workdays/day-001-cms-db-saturation/"/>
+        <xhtml:link rel="alternate" hreflang="pl" href="https://programmingbygrzegorz.github.io/AdminDay/workdays/day-001-cms-db-saturation/"/>
+    </url>
+</urlset>

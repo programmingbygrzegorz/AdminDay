@@ -1,0 +1,1635 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="IT Operations Journal – real-world IT administration cases, diagnostics and automation">
+      
+      
+      
+        <link rel="canonical" href="https://programmingbygrzegorz.github.io/AdminDay/en/workdays/day-001-cms-db-saturation/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../../incidents/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.39">
+    
+    
+      
+        <title>Day 001 – CMS portal outages: an overloaded Galera database - AdminDay</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.8c3ca2c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"IBM Plex Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#day-001-cms-portal-outages-an-overloaded-galera-database" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../" title="AdminDay" class="md-header__button md-logo" aria-label="AdminDay" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AdminDay
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Day 001 – CMS portal outages: an overloaded Galera database
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Tryb jasny / Light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Tryb jasny / Light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Tryb ciemny / Dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Tryb ciemny / Dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../workdays/day-001-cms-db-saturation/" hreflang="pl" class="md-select__link">
+              Polski
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/programmingbygrzegorz/AdminDay" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    programmingbygrzegorz/AdminDay
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Workdays
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../incidents/" class="md-tabs__link">
+          
+  
+    
+  
+  Incidents
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../about/anonymization/" class="md-tabs__link">
+          
+  
+    
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="AdminDay" class="md-nav__button md-logo" aria-label="AdminDay" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    AdminDay
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/programmingbygrzegorz/AdminDay" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    programmingbygrzegorz/AdminDay
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Workdays
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Workdays
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Day 001 – CMS portal outages: an overloaded Galera database
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Day 001 – CMS portal outages: an overloaded Galera database
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Scenario
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Environment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Problem
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Investigation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Investigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-path-in-short" class="md-nav__link">
+    <span class="md-ellipsis">
+      The path in short
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hypothesis-board" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hypothesis board
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#41-web-nodes-system-services-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 Web nodes: system, services, memory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-do-the-zabbix-requests-arrive-at-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 Do the Zabbix requests arrive at all?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-measuring-response-time-without-d-in-logformat" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 Measuring response time without %D in LogFormat
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-bots-php-fpm-static-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 Bots? PHP-FPM? Static files?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-application-config-where-does-database-traffic-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 Application config: where does database traffic go?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-database-galera-and-mariadb-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.6 Database: Galera and MariaDB status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-caught-live-a-full-table-scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.7 Caught live: a full table scan
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-night-and-sunday-outages-scheduled-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.8 Night and Sunday outages: scheduled jobs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49-what-else-i-checked-and-ruled-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.9 What else I checked (and ruled out)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-root-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Root cause
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-resolution-planned" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Resolution (planned)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-verification-after-rollout" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Verification (after rollout)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Lessons learned
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-evidence-anonymized" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Evidence (anonymized)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../incidents/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Incidents
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Incidents
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    About
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            About
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/anonymization/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anonymization rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Scenario
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Environment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Problem
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Investigation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Investigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-path-in-short" class="md-nav__link">
+    <span class="md-ellipsis">
+      The path in short
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hypothesis-board" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hypothesis board
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#41-web-nodes-system-services-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 Web nodes: system, services, memory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-do-the-zabbix-requests-arrive-at-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 Do the Zabbix requests arrive at all?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-measuring-response-time-without-d-in-logformat" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 Measuring response time without %D in LogFormat
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-bots-php-fpm-static-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 Bots? PHP-FPM? Static files?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-application-config-where-does-database-traffic-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 Application config: where does database traffic go?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-database-galera-and-mariadb-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.6 Database: Galera and MariaDB status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-caught-live-a-full-table-scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.7 Caught live: a full table scan
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-night-and-sunday-outages-scheduled-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.8 Night and Sunday outages: scheduled jobs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49-what-else-i-checked-and-ruled-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.9 What else I checked (and ruled out)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-root-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Root cause
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-resolution-planned" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Resolution (planned)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-verification-after-rollout" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Verification (after rollout)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Lessons learned
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-evidence-anonymized" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Evidence (anonymized)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="day-001-cms-portal-outages-an-overloaded-galera-database">Day 001 – CMS portal outages: an overloaded Galera database<a class="headerlink" href="#day-001-cms-portal-outages-an-overloaded-galera-database" title="Permanent link">&para;</a></h1>
+<div class="ad-pills">
+<span class="ad-pill hot">production incident</span>
+<span class="ad-pill">real case · anonymized</span>
+<span class="ad-pill ok">root cause found</span>
+<span class="ad-pill warn">fixes planned</span>
+<span class="ad-pill">2026-11-19 · about 1 day</span>
+</div>
+
+<div class="ad-kpis">
+<div class="ad-kpi hot"><small>alerts / 30 days</small><b>248</b><span>15 s timeout, usually about 1 min of outage</span></div>
+<div class="ad-kpi hot"><small>InnoDB buffer</small><b>0.5%</b><span>128 MB of memory for 26 GB of data</span></div>
+<div class="ad-kpi warn"><small>full table scan</small><b>394 MB</b><span>on every page save in 433 tenants</span></div>
+<div class="ad-kpi ok"><small>production changes</small><b>0</b><span>read-only diagnostics</span></div>
+</div>
+
+<div class="admonition info">
+<p class="admonition-title">Anonymization</p>
+<p>Names of organizations, vendors, products, domains, tenants, databases, IP addresses
+and credentials were removed or replaced. Commands and results are real; only identifiers
+were changed. See <a href="../../about/anonymization/">Anonymization rules</a>.</p>
+</div>
+<h2 id="1-scenario">1. Scenario<a class="headerlink" href="#1-scenario" title="Permanent link">&para;</a></h2>
+<p>Zabbix keeps raising alerts: the main portal serving many public-sector organizations
+stops responding every now and then. The alert text:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Operation timed out after 15000 milliseconds with 0 bytes received
+</code></pre></div>
+<p>The reporter said: <em>"it kept dropping at these times yesterday and today, it wasn't like this before"</em>.
+Task: find the cause without changing anything in production unless agreed.</p>
+<h2 id="2-environment">2. Environment<a class="headerlink" href="#2-environment" title="Permanent link">&para;</a></h2>
+<figure class="ad-chart">
+<svg class="ad-svg ad-arch" viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Environment architecture (anonymized)">
+<defs>
+<marker id="m-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="a-head"/></marker>
+<marker id="m-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="a-head-hot"/></marker>
+</defs>
+<rect x="380" y="12" width="200" height="52" rx="26" class="a-box"/>
+<text x="480" y="36" text-anchor="middle" class="a-name">Internet</text>
+<text x="480" y="54" text-anchor="middle" class="a-sub">citizens · editors · bots</text>
+<rect x="716" y="12" width="224" height="52" rx="8" class="a-box"/>
+<text x="732" y="35" class="a-name">Monitoring</text>
+<text x="732" y="53" class="a-sub">GET / every 60 s · 15 s timeout</text>
+<path d="M716 40 L652 40 L652 128 L632 128" class="a-ln" marker-end="url(#m-a)"/>
+<path d="M480 64 L480 100" class="a-ln" marker-end="url(#m-a)"/>
+<rect x="330" y="102" width="300" height="60" rx="8" class="a-box-acc"/>
+<text x="346" y="127" class="a-name">Firewall / load balancer</text>
+<text x="346" y="147" class="a-sub">VIP · SNAT to internal address</text>
+<path d="M420 162 L300 220" class="a-ln" marker-end="url(#m-a)"/>
+<path d="M540 162 L660 220" class="a-ln" marker-end="url(#m-a)"/>
+<rect x="130" y="222" width="300" height="112" rx="8" class="a-box"/>
+<text x="146" y="248" class="a-name">web01</text>
+<text x="146" y="270" class="a-sub">Apache + PHP-FPM (max 50)</text>
+<text x="146" y="290" class="a-hot">2 vCPU · 1.7 GB RAM · swapping</text>
+<text x="146" y="312" class="a-hot">+ application cron jobs</text>
+<rect x="530" y="222" width="280" height="112" rx="8" class="a-box"/>
+<text x="546" y="248" class="a-name">web02</text>
+<text x="546" y="270" class="a-sub">Apache + PHP-FPM (max 50)</text>
+<text x="546" y="290" class="a-hot">2 vCPU · 1.7 GB RAM · swapping</text>
+<text x="546" y="312" class="a-sub">no cron jobs</text>
+<rect x="832" y="228" width="118" height="78" rx="8" class="a-box"/>
+<text x="846" y="254" class="a-name">cache01</text>
+<text x="846" y="274" class="a-sub">Redis</text>
+<text x="846" y="292" class="a-sub">PHP sessions only</text>
+<path d="M280 334 L280 356 L891 356 L891 308" class="a-ln-dash"/>
+<path d="M700 334 L700 356" class="a-ln-dash"/>
+<text x="740" y="350" class="a-label">sessions</text>
+<path d="M210 334 L200 428" class="a-ln-hot a-flow" marker-end="url(#m-h)"/>
+<path d="M600 334 L280 428" class="a-ln-hot a-flow" marker-end="url(#m-h)"/>
+<text x="436" y="398" class="a-label-hot">100% of SQL + files (GlusterFS)</text>
+<rect x="40" y="414" width="900" height="176" rx="12" class="a-cluster"/>
+<text x="56" y="582" class="a-label">MariaDB Galera cluster · 3 full copies of the data</text>
+<rect x="66" y="434" width="268" height="126" rx="8" class="a-box-hot"/>
+<circle cx="316" cy="452" r="6" class="a-pulse"/>
+<text x="82" y="460" class="a-name">db01</text>
+<text x="82" y="482" class="a-sub">MariaDB 10.11 + GlusterFS</text>
+<text x="82" y="504" class="a-hot">InnoDB buffer 128 MB / 26 GB</text>
+<text x="82" y="526" class="a-hot">2 vCPU · 3.7 GB RAM · load 2.4–4.4</text>
+<rect x="366" y="434" width="268" height="126" rx="8" class="a-box-dim"/>
+<text x="382" y="460" class="a-name">db02</text>
+<text x="382" y="482" class="a-sub">replica · no application traffic</text>
+<rect x="666" y="434" width="268" height="126" rx="8" class="a-box-dim"/>
+<text x="682" y="460" class="a-name">db03</text>
+<text x="682" y="482" class="a-sub">replica · no application traffic</text>
+<path d="M336 497 L364 497" class="a-ln-rep" marker-start="url(#m-a)" marker-end="url(#m-a)"/>
+<path d="M636 497 L664 497" class="a-ln-rep" marker-start="url(#m-a)" marker-end="url(#m-a)"/>
+</svg>
+<figcaption>The red, "flowing" line is all SQL and file traffic from both web nodes. It hits one node, even though the cluster has three. db02 and db03 only replicate.</figcaption>
+</figure>
+
+<ul>
+<li><strong>Application:</strong> a commercial PHP CMS (Laravel and Yii2 modules), 400+ tenant sites on one
+  installation, one database per tenant plus the main portal database.</li>
+<li><strong>Stack:</strong> Rocky Linux 8, Apache httpd + PHP-FPM 8.4, MariaDB 10.11 (Galera), GlusterFS.</li>
+<li><strong>My access:</strong> SSH on an account without <code>NOPASSWD</code> sudo. Root-only commands were run by the
+  account owner in their own terminal and I analyzed the output. I ran no scripts on the servers,
+  only single read-only commands.</li>
+</ul>
+<h2 id="3-problem">3. Problem<a class="headerlink" href="#3-problem" title="Permanent link">&para;</a></h2>
+<ul>
+<li>248 alerts in 30 days. Each one means more than 15 s without a response, usually for about a minute.</li>
+<li>Until 13 Nov there were 1–5 alerts per day; <strong>from 14 Nov there were 16–24 per day</strong>.</li>
+<li>Fixed points: <strong>01:30 every night</strong> and <strong>every Sunday 02:00–03:18</strong> (outages up to 15 min).</li>
+</ul>
+<figure class="ad-chart">
+<svg class="ad-svg" viewBox="0 0 920 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Alerts per day · 20 Oct – 19 Nov 2026"><text class="c-title" x="46" y="22">Alerts per day · 20 Oct – 19 Nov 2026</text><rect class="c-bar" x="46" y="34" width="12" height="12" rx="2"/><text class="c-leg" x="64" y="44">regular day</text><rect class="c-sun" x="148.6" y="34" width="12" height="12" rx="2"/><text class="c-leg" x="166.6" y="44">Sunday (weekly jobs at 02:00)</text><rect class="c-hot" x="370.0" y="34" width="12" height="12" rx="2"/><text class="c-leg" x="388.0" y="44">from 14 Nov</text><line class="c-grid" x1="46" y1="276.0" x2="904" y2="276.0"/><text class="c-axis" x="38" y="280.0" text-anchor="end">0</text><line class="c-grid" x1="46" y1="233.6" x2="904" y2="233.6"/><text class="c-axis" x="38" y="237.6" text-anchor="end">5</text><line class="c-grid" x1="46" y1="191.2" x2="904" y2="191.2"/><text class="c-axis" x="38" y="195.2" text-anchor="end">10</text><line class="c-grid" x1="46" y1="148.8" x2="904" y2="148.8"/><text class="c-axis" x="38" y="152.8" text-anchor="end">15</text><line class="c-grid" x1="46" y1="106.4" x2="904" y2="106.4"/><text class="c-axis" x="38" y="110.4" text-anchor="end">20</text><line class="c-grid" x1="46" y1="64.0" x2="904" y2="64.0"/><text class="c-axis" x="38" y="68.0" text-anchor="end">25</text><text class="c-axis" transform="translate(12 170.0) rotate(-90)" text-anchor="middle">alerts</text><rect class="c-bar" x="50.7" y="267.5" width="18.3" height="8.5" rx="2"><title>20.10: 1</title></rect><text class="c-axis" x="59.8" y="294" text-anchor="middle">20.10</text><text class="c-axis c-dim" x="59.8" y="308" text-anchor="middle">Tue</text><rect class="c-bar" x="78.4" y="242.1" width="18.3" height="33.9" rx="2"><title>21.10: 4</title></rect><rect class="c-bar" x="106.1" y="259.0" width="18.3" height="17.0" rx="2"><title>22.10: 2</title></rect><rect class="c-bar" x="133.7" y="182.7" width="18.3" height="93.3" rx="2"><title>23.10: 11</title></rect><text class="c-val" x="142.9" y="177.7" text-anchor="middle">11</text><text class="c-axis" x="142.9" y="294" text-anchor="middle">23.10</text><text class="c-axis c-dim" x="142.9" y="308" text-anchor="middle">Fri</text><rect class="c-bar" x="161.4" y="242.1" width="18.3" height="33.9" rx="2"><title>24.10: 4</title></rect><rect class="c-sun" x="189.1" y="131.8" width="18.3" height="144.2" rx="2"><title>25.10: 17</title></rect><text class="c-val" x="198.2" y="126.8" text-anchor="middle">17</text><rect class="c-bar" x="216.8" y="242.1" width="18.3" height="33.9" rx="2"><title>26.10: 4</title></rect><text class="c-axis" x="225.9" y="294" text-anchor="middle">26.10</text><text class="c-axis c-dim" x="225.9" y="308" text-anchor="middle">Mon</text><rect class="c-bar" x="244.4" y="250.6" width="18.3" height="25.4" rx="2"><title>27.10: 3</title></rect><rect class="c-bar" x="272.1" y="267.5" width="18.3" height="8.5" rx="2"><title>28.10: 1</title></rect><rect class="c-bar" x="299.8" y="233.6" width="18.3" height="42.4" rx="2"><title>29.10: 5</title></rect><text class="c-axis" x="308.9" y="294" text-anchor="middle">29.10</text><text class="c-axis c-dim" x="308.9" y="308" text-anchor="middle">Thu</text><rect class="c-bar" x="327.5" y="267.5" width="18.3" height="8.5" rx="2"><title>30.10: 1</title></rect><rect class="c-bar" x="355.2" y="250.6" width="18.3" height="25.4" rx="2"><title>31.10: 3</title></rect><rect class="c-sun" x="382.8" y="123.4" width="18.3" height="152.6" rx="2"><title>01.11: 18</title></rect><text class="c-val" x="392.0" y="118.4" text-anchor="middle">18</text><text class="c-axis" x="392.0" y="294" text-anchor="middle">01.11</text><text class="c-axis c-dim" x="392.0" y="308" text-anchor="middle">Sun</text><rect class="c-bar" x="410.5" y="242.1" width="18.3" height="33.9" rx="2"><title>02.11: 4</title></rect><rect class="c-bar" x="438.2" y="242.1" width="18.3" height="33.9" rx="2"><title>03.11: 4</title></rect><rect class="c-bar" x="465.9" y="182.7" width="18.3" height="93.3" rx="2"><title>04.11: 11</title></rect><text class="c-val" x="475.0" y="177.7" text-anchor="middle">11</text><text class="c-axis" x="475.0" y="294" text-anchor="middle">04.11</text><text class="c-axis c-dim" x="475.0" y="308" text-anchor="middle">Wed</text><rect class="c-bar" x="493.5" y="259.0" width="18.3" height="17.0" rx="2"><title>05.11: 2</title></rect><rect class="c-bar" x="521.2" y="242.1" width="18.3" height="33.9" rx="2"><title>06.11: 4</title></rect><rect class="c-bar" x="548.9" y="267.5" width="18.3" height="8.5" rx="2"><title>07.11: 1</title></rect><text class="c-axis" x="558.0" y="294" text-anchor="middle">07.11</text><text class="c-axis c-dim" x="558.0" y="308" text-anchor="middle">Sat</text><rect class="c-sun" x="576.6" y="157.3" width="18.3" height="118.7" rx="2"><title>08.11: 14</title></rect><text class="c-val" x="585.7" y="152.3" text-anchor="middle">14</text><rect class="c-bar" x="604.3" y="259.0" width="18.3" height="17.0" rx="2"><title>09.11: 2</title></rect><rect class="c-bar" x="631.9" y="208.2" width="18.3" height="67.8" rx="2"><title>10.11: 8</title></rect><text class="c-val" x="641.1" y="203.2" text-anchor="middle">8</text><text class="c-axis" x="641.1" y="294" text-anchor="middle">10.11</text><text class="c-axis c-dim" x="641.1" y="308" text-anchor="middle">Tue</text><rect class="c-bar" x="659.6" y="259.0" width="18.3" height="17.0" rx="2"><title>11.11: 2</title></rect><rect class="c-bar" x="687.3" y="233.6" width="18.3" height="42.4" rx="2"><title>12.11: 5</title></rect><rect class="c-bar" x="715.0" y="208.2" width="18.3" height="67.8" rx="2"><title>13.11: 8</title></rect><text class="c-val" x="724.1" y="203.2" text-anchor="middle">8</text><text class="c-axis" x="724.1" y="294" text-anchor="middle">13.11</text><text class="c-axis c-dim" x="724.1" y="308" text-anchor="middle">Fri</text><rect class="c-hot" x="742.6" y="81.0" width="18.3" height="195.0" rx="2"><title>14.11: 23</title></rect><text class="c-val" x="751.8" y="76.0" text-anchor="middle">23</text><rect class="c-sun" x="770.3" y="89.4" width="18.3" height="186.6" rx="2"><title>15.11: 22</title></rect><text class="c-val" x="779.5" y="84.4" text-anchor="middle">22</text><rect class="c-hot" x="798.0" y="140.3" width="18.3" height="135.7" rx="2"><title>16.11: 16</title></rect><text class="c-val" x="807.1" y="135.3" text-anchor="middle">16</text><text class="c-axis" x="807.1" y="294" text-anchor="middle">16.11</text><text class="c-axis c-dim" x="807.1" y="308" text-anchor="middle">Mon</text><rect class="c-hot" x="825.7" y="72.5" width="18.3" height="203.5" rx="2"><title>17.11: 24</title></rect><text class="c-val" x="834.8" y="67.5" text-anchor="middle">24</text><rect class="c-hot" x="853.4" y="140.3" width="18.3" height="135.7" rx="2"><title>18.11: 16</title></rect><text class="c-val" x="862.5" y="135.3" text-anchor="middle">16</text><rect class="c-hot" x="881.0" y="208.2" width="18.3" height="67.8" rx="2"><title>19.11: 8</title></rect><text class="c-val" x="890.2" y="203.2" text-anchor="middle">8</text><text class="c-axis" x="890.2" y="294" text-anchor="middle">19.11</text><text class="c-axis c-dim" x="890.2" y="308" text-anchor="middle">Thu</text><line class="c-base" x1="46" y1="276" x2="904" y2="276"/><rect class="c-zone" x="737.9" y="64" width="166.1" height="212"/><line class="c-mark" x1="737.9" y1="60" x2="737.9" y2="276"/><text class="c-note" x="743.9" y="76">from 14 Nov: 4–5× more</text></svg>
+<figcaption>Alerts per day (monitoring data, 248 events). Sundays always stand out. From 14 Nov there are 4–5× more alerts on regular days too.</figcaption>
+</figure>
+
+<figure class="ad-chart">
+<svg class="ad-svg" viewBox="0 0 776 628" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="When the site stops responding · hour the alert started"><text class="c-title" x="84" y="22">When the site stops responding · hour the alert started</text><rect class="c-band" x="307" y="60" width="224" height="500" rx="4"/><text class="c-leg" x="419.0" y="36" text-anchor="middle">office hours 08–16</text><text class="c-axis" x="97.0" y="54" text-anchor="middle">00</text><text class="c-axis" x="125.0" y="54" text-anchor="middle">01</text><text class="c-axis" x="153.0" y="54" text-anchor="middle">02</text><text class="c-axis" x="181.0" y="54" text-anchor="middle">03</text><text class="c-axis" x="209.0" y="54" text-anchor="middle">04</text><text class="c-axis" x="237.0" y="54" text-anchor="middle">05</text><text class="c-axis" x="265.0" y="54" text-anchor="middle">06</text><text class="c-axis" x="293.0" y="54" text-anchor="middle">07</text><text class="c-axis" x="321.0" y="54" text-anchor="middle">08</text><text class="c-axis" x="349.0" y="54" text-anchor="middle">09</text><text class="c-axis" x="377.0" y="54" text-anchor="middle">10</text><text class="c-axis" x="405.0" y="54" text-anchor="middle">11</text><text class="c-axis" x="433.0" y="54" text-anchor="middle">12</text><text class="c-axis" x="461.0" y="54" text-anchor="middle">13</text><text class="c-axis" x="489.0" y="54" text-anchor="middle">14</text><text class="c-axis" x="517.0" y="54" text-anchor="middle">15</text><text class="c-axis" x="545.0" y="54" text-anchor="middle">16</text><text class="c-axis" x="573.0" y="54" text-anchor="middle">17</text><text class="c-axis" x="601.0" y="54" text-anchor="middle">18</text><text class="c-axis" x="629.0" y="54" text-anchor="middle">19</text><text class="c-axis" x="657.0" y="54" text-anchor="middle">20</text><text class="c-axis" x="685.0" y="54" text-anchor="middle">21</text><text class="c-axis" x="713.0" y="54" text-anchor="middle">22</text><text class="c-axis" x="741.0" y="54" text-anchor="middle">23</text><text class="c-axis" x="76" y="77" text-anchor="end">Tue 20.10</text><rect class="h0" x="84" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="112" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="140" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="66" width="26" height="14" rx="2"></rect><rect class="h1" x="532" y="66" width="26" height="14" rx="2"><title>20.10 16:00 – 1</title></rect><rect class="h0" x="560" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="66" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="66" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="93" text-anchor="end">Wed 21.10</text><rect class="h1" x="84" y="82" width="26" height="14" rx="2"><title>21.10 00:00 – 1</title></rect><rect class="h1" x="112" y="82" width="26" height="14" rx="2"><title>21.10 01:00 – 1</title></rect><rect class="h0" x="140" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="82" width="26" height="14" rx="2"></rect><rect class="h2" x="308" y="82" width="26" height="14" rx="2"><title>21.10 08:00 – 2</title></rect><rect class="h0" x="336" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="82" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="82" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="109" text-anchor="end">Thu 22.10</text><rect class="h0" x="84" y="98" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="98" width="26" height="14" rx="2"><title>22.10 01:00 – 1</title></rect><rect class="h0" x="140" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="98" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="98" width="26" height="14" rx="2"></rect><rect class="h1" x="700" y="98" width="26" height="14" rx="2"><title>22.10 22:00 – 1</title></rect><rect class="h0" x="728" y="98" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="125" text-anchor="end">Fri 23.10</text><rect class="h0" x="84" y="114" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="114" width="26" height="14" rx="2"><title>23.10 01:00 – 1</title></rect><rect class="h0" x="140" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="114" width="26" height="14" rx="2"></rect><rect class="h2" x="280" y="114" width="26" height="14" rx="2"><title>23.10 07:00 – 2</title></rect><rect class="h0" x="308" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="114" width="26" height="14" rx="2"></rect><rect class="h1" x="420" y="114" width="26" height="14" rx="2"><title>23.10 12:00 – 1</title></rect><rect class="h0" x="448" y="114" width="26" height="14" rx="2"></rect><rect class="h1" x="476" y="114" width="26" height="14" rx="2"><title>23.10 14:00 – 1</title></rect><rect class="h0" x="504" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="114" width="26" height="14" rx="2"></rect><rect class="h1" x="560" y="114" width="26" height="14" rx="2"><title>23.10 17:00 – 1</title></rect><rect class="h2" x="588" y="114" width="26" height="14" rx="2"><title>23.10 18:00 – 2</title></rect><rect class="h1" x="616" y="114" width="26" height="14" rx="2"><title>23.10 19:00 – 1</title></rect><rect class="h1" x="644" y="114" width="26" height="14" rx="2"><title>23.10 20:00 – 1</title></rect><rect class="h1" x="672" y="114" width="26" height="14" rx="2"><title>23.10 21:00 – 1</title></rect><rect class="h0" x="700" y="114" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="114" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="141" text-anchor="end">Sat 24.10</text><rect class="h0" x="84" y="130" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="130" width="26" height="14" rx="2"><title>24.10 01:00 – 1</title></rect><rect class="h0" x="140" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="130" width="26" height="14" rx="2"></rect><rect class="h2" x="532" y="130" width="26" height="14" rx="2"><title>24.10 16:00 – 2</title></rect><rect class="h0" x="560" y="130" width="26" height="14" rx="2"></rect><rect class="h1" x="588" y="130" width="26" height="14" rx="2"><title>24.10 18:00 – 1</title></rect><rect class="h0" x="616" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="130" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="130" width="26" height="14" rx="2"></rect><text class="c-axis c-sunlab" x="76" y="157" text-anchor="end">Sun 25.10</text><rect class="h0" x="84" y="146" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="146" width="26" height="14" rx="2"><title>25.10 01:00 – 1</title></rect><rect class="h4" x="140" y="146" width="26" height="14" rx="2"><title>25.10 02:00 – 16</title></rect><rect class="h0" x="168" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="146" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="146" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="173" text-anchor="end">Mon 26.10</text><rect class="h0" x="84" y="162" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="162" width="26" height="14" rx="2"><title>26.10 01:00 – 1</title></rect><rect class="h0" x="140" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="162" width="26" height="14" rx="2"></rect><rect class="h1" x="364" y="162" width="26" height="14" rx="2"><title>26.10 10:00 – 1</title></rect><rect class="h1" x="392" y="162" width="26" height="14" rx="2"><title>26.10 11:00 – 1</title></rect><rect class="h0" x="420" y="162" width="26" height="14" rx="2"></rect><rect class="h1" x="448" y="162" width="26" height="14" rx="2"><title>26.10 13:00 – 1</title></rect><rect class="h0" x="476" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="162" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="162" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="189" text-anchor="end">Tue 27.10</text><rect class="h0" x="84" y="178" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="178" width="26" height="14" rx="2"><title>27.10 01:00 – 1</title></rect><rect class="h0" x="140" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="178" width="26" height="14" rx="2"></rect><rect class="h1" x="336" y="178" width="26" height="14" rx="2"><title>27.10 09:00 – 1</title></rect><rect class="h0" x="364" y="178" width="26" height="14" rx="2"></rect><rect class="h1" x="392" y="178" width="26" height="14" rx="2"><title>27.10 11:00 – 1</title></rect><rect class="h0" x="420" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="178" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="178" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="205" text-anchor="end">Wed 28.10</text><rect class="h0" x="84" y="194" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="194" width="26" height="14" rx="2"><title>28.10 01:00 – 1</title></rect><rect class="h0" x="140" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="194" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="194" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="221" text-anchor="end">Thu 29.10</text><rect class="h0" x="84" y="210" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="210" width="26" height="14" rx="2"><title>29.10 01:00 – 1</title></rect><rect class="h0" x="140" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="210" width="26" height="14" rx="2"></rect><rect class="h2" x="336" y="210" width="26" height="14" rx="2"><title>29.10 09:00 – 2</title></rect><rect class="h1" x="364" y="210" width="26" height="14" rx="2"><title>29.10 10:00 – 1</title></rect><rect class="h0" x="392" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="210" width="26" height="14" rx="2"></rect><rect class="h1" x="532" y="210" width="26" height="14" rx="2"><title>29.10 16:00 – 1</title></rect><rect class="h0" x="560" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="210" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="210" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="237" text-anchor="end">Fri 30.10</text><rect class="h0" x="84" y="226" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="226" width="26" height="14" rx="2"><title>30.10 01:00 – 1</title></rect><rect class="h0" x="140" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="226" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="226" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="253" text-anchor="end">Sat 31.10</text><rect class="h0" x="84" y="242" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="242" width="26" height="14" rx="2"><title>31.10 01:00 – 1</title></rect><rect class="h0" x="140" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="242" width="26" height="14" rx="2"></rect><rect class="h1" x="252" y="242" width="26" height="14" rx="2"><title>31.10 06:00 – 1</title></rect><rect class="h0" x="280" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="242" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="242" width="26" height="14" rx="2"></rect><rect class="h1" x="728" y="242" width="26" height="14" rx="2"><title>31.10 23:00 – 1</title></rect><text class="c-axis c-sunlab" x="76" y="269" text-anchor="end">Sun 01.11</text><rect class="h0" x="84" y="258" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="258" width="26" height="14" rx="2"><title>01.11 01:00 – 1</title></rect><rect class="h4" x="140" y="258" width="26" height="14" rx="2"><title>01.11 02:00 – 14</title></rect><rect class="h1" x="168" y="258" width="26" height="14" rx="2"><title>01.11 03:00 – 1</title></rect><rect class="h1" x="196" y="258" width="26" height="14" rx="2"><title>01.11 04:00 – 1</title></rect><rect class="h0" x="224" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="258" width="26" height="14" rx="2"></rect><rect class="h1" x="588" y="258" width="26" height="14" rx="2"><title>01.11 18:00 – 1</title></rect><rect class="h0" x="616" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="258" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="258" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="285" text-anchor="end">Mon 02.11</text><rect class="h0" x="84" y="274" width="26" height="14" rx="2"></rect><rect class="h2" x="112" y="274" width="26" height="14" rx="2"><title>02.11 01:00 – 2</title></rect><rect class="h0" x="140" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="274" width="26" height="14" rx="2"></rect><rect class="h2" x="336" y="274" width="26" height="14" rx="2"><title>02.11 09:00 – 2</title></rect><rect class="h0" x="364" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="274" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="274" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="301" text-anchor="end">Tue 03.11</text><rect class="h0" x="84" y="290" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="290" width="26" height="14" rx="2"><title>03.11 01:00 – 1</title></rect><rect class="h0" x="140" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="290" width="26" height="14" rx="2"></rect><rect class="h1" x="364" y="290" width="26" height="14" rx="2"><title>03.11 10:00 – 1</title></rect><rect class="h0" x="392" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="290" width="26" height="14" rx="2"></rect><rect class="h1" x="476" y="290" width="26" height="14" rx="2"><title>03.11 14:00 – 1</title></rect><rect class="h0" x="504" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="290" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="290" width="26" height="14" rx="2"><title>03.11 19:00 – 1</title></rect><rect class="h0" x="644" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="290" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="290" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="317" text-anchor="end">Wed 04.11</text><rect class="h0" x="84" y="306" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="306" width="26" height="14" rx="2"><title>04.11 01:00 – 1</title></rect><rect class="h1" x="140" y="306" width="26" height="14" rx="2"><title>04.11 02:00 – 1</title></rect><rect class="h0" x="168" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="306" width="26" height="14" rx="2"></rect><rect class="h1" x="252" y="306" width="26" height="14" rx="2"><title>04.11 06:00 – 1</title></rect><rect class="h0" x="280" y="306" width="26" height="14" rx="2"></rect><rect class="h1" x="308" y="306" width="26" height="14" rx="2"><title>04.11 08:00 – 1</title></rect><rect class="h1" x="336" y="306" width="26" height="14" rx="2"><title>04.11 09:00 – 1</title></rect><rect class="h0" x="364" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="306" width="26" height="14" rx="2"></rect><rect class="h3" x="420" y="306" width="26" height="14" rx="2"><title>04.11 12:00 – 3</title></rect><rect class="h1" x="448" y="306" width="26" height="14" rx="2"><title>04.11 13:00 – 1</title></rect><rect class="h1" x="476" y="306" width="26" height="14" rx="2"><title>04.11 14:00 – 1</title></rect><rect class="h0" x="504" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="306" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="306" width="26" height="14" rx="2"><title>04.11 19:00 – 1</title></rect><rect class="h0" x="644" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="306" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="306" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="333" text-anchor="end">Thu 05.11</text><rect class="h0" x="84" y="322" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="322" width="26" height="14" rx="2"><title>05.11 01:00 – 1</title></rect><rect class="h0" x="140" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="322" width="26" height="14" rx="2"></rect><rect class="h1" x="308" y="322" width="26" height="14" rx="2"><title>05.11 08:00 – 1</title></rect><rect class="h0" x="336" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="322" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="322" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="349" text-anchor="end">Fri 06.11</text><rect class="h0" x="84" y="338" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="338" width="26" height="14" rx="2"><title>06.11 01:00 – 1</title></rect><rect class="h0" x="140" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="338" width="26" height="14" rx="2"></rect><rect class="h1" x="308" y="338" width="26" height="14" rx="2"><title>06.11 08:00 – 1</title></rect><rect class="h0" x="336" y="338" width="26" height="14" rx="2"></rect><rect class="h1" x="364" y="338" width="26" height="14" rx="2"><title>06.11 10:00 – 1</title></rect><rect class="h0" x="392" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="338" width="26" height="14" rx="2"></rect><rect class="h1" x="448" y="338" width="26" height="14" rx="2"><title>06.11 13:00 – 1</title></rect><rect class="h0" x="476" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="338" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="338" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="365" text-anchor="end">Sat 07.11</text><rect class="h0" x="84" y="354" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="354" width="26" height="14" rx="2"><title>07.11 01:00 – 1</title></rect><rect class="h0" x="140" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="354" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="354" width="26" height="14" rx="2"></rect><text class="c-axis c-sunlab" x="76" y="381" text-anchor="end">Sun 08.11</text><rect class="h0" x="84" y="370" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="370" width="26" height="14" rx="2"><title>08.11 01:00 – 1</title></rect><rect class="h4" x="140" y="370" width="26" height="14" rx="2"><title>08.11 02:00 – 13</title></rect><rect class="h0" x="168" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="370" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="370" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="397" text-anchor="end">Mon 09.11</text><rect class="h0" x="84" y="386" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="386" width="26" height="14" rx="2"><title>09.11 01:00 – 1</title></rect><rect class="h0" x="140" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="386" width="26" height="14" rx="2"></rect><rect class="h1" x="504" y="386" width="26" height="14" rx="2"><title>09.11 15:00 – 1</title></rect><rect class="h0" x="532" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="386" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="386" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="413" text-anchor="end">Tue 10.11</text><rect class="h0" x="84" y="402" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="402" width="26" height="14" rx="2"><title>10.11 01:00 – 1</title></rect><rect class="h0" x="140" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="402" width="26" height="14" rx="2"></rect><rect class="h4" x="392" y="402" width="26" height="14" rx="2"><title>10.11 11:00 – 7</title></rect><rect class="h0" x="420" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="402" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="402" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="429" text-anchor="end">Wed 11.11</text><rect class="h0" x="84" y="418" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="418" width="26" height="14" rx="2"><title>11.11 01:00 – 1</title></rect><rect class="h0" x="140" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="336" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="418" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="418" width="26" height="14" rx="2"><title>11.11 19:00 – 1</title></rect><rect class="h0" x="644" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="418" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="418" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="445" text-anchor="end">Thu 12.11</text><rect class="h0" x="84" y="434" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="434" width="26" height="14" rx="2"><title>12.11 01:00 – 1</title></rect><rect class="h0" x="140" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="434" width="26" height="14" rx="2"></rect><rect class="h1" x="308" y="434" width="26" height="14" rx="2"><title>12.11 08:00 – 1</title></rect><rect class="h0" x="336" y="434" width="26" height="14" rx="2"></rect><rect class="h1" x="364" y="434" width="26" height="14" rx="2"><title>12.11 10:00 – 1</title></rect><rect class="h0" x="392" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="434" width="26" height="14" rx="2"></rect><rect class="h1" x="560" y="434" width="26" height="14" rx="2"><title>12.11 17:00 – 1</title></rect><rect class="h0" x="588" y="434" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="434" width="26" height="14" rx="2"><title>12.11 19:00 – 1</title></rect><rect class="h0" x="644" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="434" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="434" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="461" text-anchor="end">Fri 13.11</text><rect class="h0" x="84" y="450" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="450" width="26" height="14" rx="2"><title>13.11 01:00 – 1</title></rect><rect class="h0" x="140" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="450" width="26" height="14" rx="2"></rect><rect class="h2" x="308" y="450" width="26" height="14" rx="2"><title>13.11 08:00 – 2</title></rect><rect class="h0" x="336" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="450" width="26" height="14" rx="2"></rect><rect class="h1" x="392" y="450" width="26" height="14" rx="2"><title>13.11 11:00 – 1</title></rect><rect class="h1" x="420" y="450" width="26" height="14" rx="2"><title>13.11 12:00 – 1</title></rect><rect class="h0" x="448" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="450" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="450" width="26" height="14" rx="2"><title>13.11 19:00 – 1</title></rect><rect class="h1" x="644" y="450" width="26" height="14" rx="2"><title>13.11 20:00 – 1</title></rect><rect class="h1" x="672" y="450" width="26" height="14" rx="2"><title>13.11 21:00 – 1</title></rect><rect class="h0" x="700" y="450" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="450" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="477" text-anchor="end">Sat 14.11</text><rect class="h0" x="84" y="466" width="26" height="14" rx="2"></rect><rect class="h2" x="112" y="466" width="26" height="14" rx="2"><title>14.11 01:00 – 2</title></rect><rect class="h0" x="140" y="466" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="466" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="466" width="26" height="14" rx="2"></rect><rect class="h1" x="224" y="466" width="26" height="14" rx="2"><title>14.11 05:00 – 1</title></rect><rect class="h3" x="252" y="466" width="26" height="14" rx="2"><title>14.11 06:00 – 4</title></rect><rect class="h1" x="280" y="466" width="26" height="14" rx="2"><title>14.11 07:00 – 1</title></rect><rect class="h1" x="308" y="466" width="26" height="14" rx="2"><title>14.11 08:00 – 1</title></rect><rect class="h2" x="336" y="466" width="26" height="14" rx="2"><title>14.11 09:00 – 2</title></rect><rect class="h1" x="364" y="466" width="26" height="14" rx="2"><title>14.11 10:00 – 1</title></rect><rect class="h0" x="392" y="466" width="26" height="14" rx="2"></rect><rect class="h1" x="420" y="466" width="26" height="14" rx="2"><title>14.11 12:00 – 1</title></rect><rect class="h1" x="448" y="466" width="26" height="14" rx="2"><title>14.11 13:00 – 1</title></rect><rect class="h1" x="476" y="466" width="26" height="14" rx="2"><title>14.11 14:00 – 1</title></rect><rect class="h0" x="504" y="466" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="466" width="26" height="14" rx="2"></rect><rect class="h1" x="560" y="466" width="26" height="14" rx="2"><title>14.11 17:00 – 1</title></rect><rect class="h3" x="588" y="466" width="26" height="14" rx="2"><title>14.11 18:00 – 3</title></rect><rect class="h2" x="616" y="466" width="26" height="14" rx="2"><title>14.11 19:00 – 2</title></rect><rect class="h0" x="644" y="466" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="466" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="466" width="26" height="14" rx="2"></rect><rect class="h2" x="728" y="466" width="26" height="14" rx="2"><title>14.11 23:00 – 2</title></rect><text class="c-axis c-sunlab" x="76" y="493" text-anchor="end">Sun 15.11</text><rect class="h0" x="84" y="482" width="26" height="14" rx="2"></rect><rect class="h2" x="112" y="482" width="26" height="14" rx="2"><title>15.11 01:00 – 2</title></rect><rect class="h4" x="140" y="482" width="26" height="14" rx="2"><title>15.11 02:00 – 16</title></rect><rect class="h1" x="168" y="482" width="26" height="14" rx="2"><title>15.11 03:00 – 1</title></rect><rect class="h0" x="196" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="482" width="26" height="14" rx="2"></rect><rect class="h2" x="308" y="482" width="26" height="14" rx="2"><title>15.11 08:00 – 2</title></rect><rect class="h0" x="336" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="392" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="420" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="482" width="26" height="14" rx="2"></rect><rect class="h1" x="644" y="482" width="26" height="14" rx="2"><title>15.11 20:00 – 1</title></rect><rect class="h0" x="672" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="482" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="482" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="509" text-anchor="end">Mon 16.11</text><rect class="h0" x="84" y="498" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="498" width="26" height="14" rx="2"><title>16.11 01:00 – 1</title></rect><rect class="h0" x="140" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="498" width="26" height="14" rx="2"></rect><rect class="h2" x="224" y="498" width="26" height="14" rx="2"><title>16.11 05:00 – 2</title></rect><rect class="h1" x="252" y="498" width="26" height="14" rx="2"><title>16.11 06:00 – 1</title></rect><rect class="h0" x="280" y="498" width="26" height="14" rx="2"></rect><rect class="h3" x="308" y="498" width="26" height="14" rx="2"><title>16.11 08:00 – 3</title></rect><rect class="h0" x="336" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="364" y="498" width="26" height="14" rx="2"></rect><rect class="h2" x="392" y="498" width="26" height="14" rx="2"><title>16.11 11:00 – 2</title></rect><rect class="h3" x="420" y="498" width="26" height="14" rx="2"><title>16.11 12:00 – 3</title></rect><rect class="h1" x="448" y="498" width="26" height="14" rx="2"><title>16.11 13:00 – 1</title></rect><rect class="h0" x="476" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="498" width="26" height="14" rx="2"></rect><rect class="h3" x="616" y="498" width="26" height="14" rx="2"><title>16.11 19:00 – 3</title></rect><rect class="h0" x="644" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="498" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="498" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="525" text-anchor="end">Tue 17.11</text><rect class="h0" x="84" y="514" width="26" height="14" rx="2"></rect><rect class="h1" x="112" y="514" width="26" height="14" rx="2"><title>17.11 01:00 – 1</title></rect><rect class="h0" x="140" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="252" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="514" width="26" height="14" rx="2"></rect><rect class="h1" x="308" y="514" width="26" height="14" rx="2"><title>17.11 08:00 – 1</title></rect><rect class="h3" x="336" y="514" width="26" height="14" rx="2"><title>17.11 09:00 – 3</title></rect><rect class="h4" x="364" y="514" width="26" height="14" rx="2"><title>17.11 10:00 – 6</title></rect><rect class="h3" x="392" y="514" width="26" height="14" rx="2"><title>17.11 11:00 – 4</title></rect><rect class="h1" x="420" y="514" width="26" height="14" rx="2"><title>17.11 12:00 – 1</title></rect><rect class="h0" x="448" y="514" width="26" height="14" rx="2"></rect><rect class="h1" x="476" y="514" width="26" height="14" rx="2"><title>17.11 14:00 – 1</title></rect><rect class="h2" x="504" y="514" width="26" height="14" rx="2"><title>17.11 15:00 – 2</title></rect><rect class="h1" x="532" y="514" width="26" height="14" rx="2"><title>17.11 16:00 – 1</title></rect><rect class="h0" x="560" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="514" width="26" height="14" rx="2"></rect><rect class="h1" x="616" y="514" width="26" height="14" rx="2"><title>17.11 19:00 – 1</title></rect><rect class="h2" x="644" y="514" width="26" height="14" rx="2"><title>17.11 20:00 – 2</title></rect><rect class="h1" x="672" y="514" width="26" height="14" rx="2"><title>17.11 21:00 – 1</title></rect><rect class="h0" x="700" y="514" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="514" width="26" height="14" rx="2"></rect><text class="c-axis" x="76" y="541" text-anchor="end">Wed 18.11</text><rect class="h1" x="84" y="530" width="26" height="14" rx="2"><title>18.11 00:00 – 1</title></rect><rect class="h1" x="112" y="530" width="26" height="14" rx="2"><title>18.11 01:00 – 1</title></rect><rect class="h0" x="140" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="168" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="530" width="26" height="14" rx="2"></rect><rect class="h1" x="224" y="530" width="26" height="14" rx="2"><title>18.11 05:00 – 1</title></rect><rect class="h0" x="252" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="280" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="530" width="26" height="14" rx="2"></rect><rect class="h1" x="336" y="530" width="26" height="14" rx="2"><title>18.11 09:00 – 1</title></rect><rect class="h1" x="364" y="530" width="26" height="14" rx="2"><title>18.11 10:00 – 1</title></rect><rect class="h4" x="392" y="530" width="26" height="14" rx="2"><title>18.11 11:00 – 6</title></rect><rect class="h1" x="420" y="530" width="26" height="14" rx="2"><title>18.11 12:00 – 1</title></rect><rect class="h0" x="448" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="530" width="26" height="14" rx="2"></rect><rect class="h1" x="644" y="530" width="26" height="14" rx="2"><title>18.11 20:00 – 1</title></rect><rect class="h0" x="672" y="530" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="530" width="26" height="14" rx="2"></rect><rect class="h3" x="728" y="530" width="26" height="14" rx="2"><title>18.11 23:00 – 3</title></rect><text class="c-axis" x="76" y="557" text-anchor="end">Thu 19.11</text><rect class="h0" x="84" y="546" width="26" height="14" rx="2"></rect><rect class="h2" x="112" y="546" width="26" height="14" rx="2"><title>19.11 01:00 – 2</title></rect><rect class="h1" x="140" y="546" width="26" height="14" rx="2"><title>19.11 02:00 – 1</title></rect><rect class="h0" x="168" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="196" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="224" y="546" width="26" height="14" rx="2"></rect><rect class="h1" x="252" y="546" width="26" height="14" rx="2"><title>19.11 06:00 – 1</title></rect><rect class="h0" x="280" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="308" y="546" width="26" height="14" rx="2"></rect><rect class="h2" x="336" y="546" width="26" height="14" rx="2"><title>19.11 09:00 – 2</title></rect><rect class="h1" x="364" y="546" width="26" height="14" rx="2"><title>19.11 10:00 – 1</title></rect><rect class="h1" x="392" y="546" width="26" height="14" rx="2"><title>19.11 11:00 – 1</title></rect><rect class="h0" x="420" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="448" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="476" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="504" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="532" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="560" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="588" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="616" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="644" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="672" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="700" y="546" width="26" height="14" rx="2"></rect><rect class="h0" x="728" y="546" width="26" height="14" rx="2"></rect><rect class="c-ring" x="110" y="62" width="30" height="496" rx="4"/><text class="c-note" x="110" y="582">↑ 01:30 – every night</text><text class="c-note c-note-sun" x="560" y="582" text-anchor="start">Sunday 02:00–03:18: up to 15 min outage</text><text class="c-leg" x="590" y="610" text-anchor="end">less</text><rect class="h0" x="596" y="600" width="14" height="12" rx="2"/><rect class="h1" x="614" y="600" width="14" height="12" rx="2"/><rect class="h2" x="632" y="600" width="14" height="12" rx="2"/><rect class="h3" x="650" y="600" width="14" height="12" rx="2"/><rect class="h4" x="668" y="600" width="14" height="12" rx="2"/><text class="c-leg" x="690" y="610">more</text></svg>
+<figcaption>Start hour of every alert. Three patterns are visible: a vertical stripe at 01:00 (the 01:30 job every night), Sunday blocks at 02:00–03:00, and a cluster during office hours from 14 Nov.</figcaption>
+</figure>
+
+<h2 id="4-investigation">4. Investigation<a class="headerlink" href="#4-investigation" title="Permanent link">&para;</a></h2>
+<p>I worked from the outside in: monitoring → load balancer → web nodes → application → database.
+Each hypothesis was confirmed or rejected with data.</p>
+<h3 id="the-path-in-short">The path in short<a class="headerlink" href="#the-path-in-short" title="Permanent link">&para;</a></h3>
+<ul class="ad-timeline">
+<li><b>Alert and access</b><span>Key-based SSH to both web nodes, with no changes to sudo configuration.</span></li>
+<li><b>Web nodes are healthy</b><span>No restarts, OOM kills or network errors during the alert windows.</span></li>
+<li><b>Zabbix requests get 200…</b><span>…but the alert starts exactly 15 s after the request sent at <code>:08</code>, so the site responds too slowly.</span></li>
+<li><b>Request duration from log entry order</b><span>Hundreds of requests ≥ 10 s per day, on both nodes at once and only PHP.</span></li>
+<li><b>Config: everything goes to db01</b><span><code>DB_HOST</code> points to one of three Galera nodes and there is no query cache.</span></li>
+<li class="hot"><b>128 MB InnoDB buffer for 26 GB of data</b><span>35.8 billion disk reads, 6.9 million waits for a free buffer page.</span></li>
+<li class="hot"><b>Caught live: <code>type: ALL</code> over 394 MB</b><span>Page sync from 433 tenants without an index.</span></li>
+<li><b>Scheduled jobs and DDL</b><span>01:30, Sunday 02:00 and new tenant creation line up with alerts.</span></li>
+<li class="ok"><b>Report and fix plan</b><span>With no change in production.</span></li>
+</ul>
+
+<h3 id="hypothesis-board">Hypothesis board<a class="headerlink" href="#hypothesis-board" title="Permanent link">&para;</a></h3>
+<div class="ad-hypo">
+<div class="ad-h no"><small>rejected</small><b>One failing web node</b><span>Both were up and slowed down at the same time.</span></div>
+<div class="ad-h no"><small>rejected</small><b>Network / load balancer</b><span>0 interface errors, traffic flows every second.</span></div>
+<div class="ad-h no"><small>rejected</small><b>Delay on the monitoring side</b><span>The request arrives on time; the response is what's slow.</span></div>
+<div class="ad-h no"><small>rejected</small><b>Bot traffic</b><span>Grew, but does not correlate with slow minutes.</span></div>
+<div class="ad-h no"><small>rejected</small><b>Saturated PHP-FPM</b><span>The pool was not full during alerts.</span></div>
+<div class="ad-h no"><small>rejected</small><b>Storage / disk</b><span>No I/O errors, &lt; 1 ms on average. One episode a year earlier.</span></div>
+<div class="ad-h yes"><small>confirmed</small><b>db01 overloaded</b><span>128 MB buffer, 2 vCPU, all traffic, plus GlusterFS.</span></div>
+<div class="ad-h yes"><small>confirmed</small><b>Missing index in page sync</b><span><code>EXPLAIN</code>: <code>type: ALL</code>, 40,508 rows.</span></div>
+<div class="ad-h part"><small>trigger</small><b>Scheduled jobs</b><span>01:30 every night, Sunday 02:00, Daily.</span></div>
+<div class="ad-h part"><small>trigger</small><b>DDL for new tenants</b><span>5 new databases in 9 minutes, with 3 alerts at the same time.</span></div>
+</div>
+
+<h3 id="41-web-nodes-system-services-memory">4.1 Web nodes: system, services, memory<a class="headerlink" href="#41-web-nodes-system-services-memory" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uptime<span class="p">;</span><span class="w"> </span>free<span class="w"> </span>-m<span class="p">;</span><span class="w"> </span>nproc
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>systemctl<span class="w"> </span>list-units<span class="w"> </span>--type<span class="o">=</span>service<span class="w"> </span>--state<span class="o">=</span>running<span class="w"> </span>--no-legend
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>journalctl<span class="w"> </span>--since<span class="w"> </span><span class="s2">"2026-11-18 00:00"</span><span class="w"> </span>-o<span class="w"> </span>short-iso<span class="w">      </span><span class="c1"># restarts, OOM, errors</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"pswpin|pswpout|oom_kill"</span><span class="w"> </span>/proc/vmstat
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ip<span class="w"> </span>-s<span class="w"> </span>link<span class="w">                                              </span><span class="c1"># interface errors / drops</span>
+</code></pre></div>
+<p><strong>Result:</strong> no service restarts, OOM kills or network errors during the alert windows
+(0 errors, 0 dropped). Constant swapping instead, because PHP-FPM uses about 1 GB of the 1.7 GB RAM.</p>
+<div class="admonition note">
+<p class="admonition-title">Hypothesis rejected</p>
+<p>A single failing web node: both nodes were fine, and the cause was elsewhere.</p>
+</div>
+<h3 id="42-do-the-zabbix-requests-arrive-at-all">4.2 Do the Zabbix requests arrive at all?<a class="headerlink" href="#42-do-the-zabbix-requests-arrive-at-all" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>grep<span class="w"> </span>-hi<span class="w"> </span><span class="s2">"zabbix"</span><span class="w"> </span>*access_log*<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"19/Nov/2026:(02|03|06):"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'{print substr($4,14,5), $1, $9, $7}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c
+</code></pre></div>
+<p><strong>Result:</strong> every Zabbix request that reached Apache got <strong>HTTP 200</strong>. Some showed up late.
+The key observation: each alert starts exactly <strong>15 s after</strong> the request sent at second <code>:08</code>,
+which means the response took until the timeout.</p>
+<h3 id="43-measuring-response-time-without-d-in-logformat">4.3 Measuring response time without <code>%D</code> in LogFormat<a class="headerlink" href="#43-measuring-response-time-without-d-in-logformat" title="Permanent link">&para;</a></h3>
+<p>Apache did not log request duration, but it <strong>writes the log line only when the request finishes</strong>.
+If a line stamped <code>02:43:08</code> appears <em>after</em> lines stamped <code>02:43:20</code>, the request took at least 12 s:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>awk<span class="w"> </span><span class="s1">'FNR==1{mx=0}</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="s1">     {split(substr($4,2),a,/[\/:]/); t=a[1]*86400+a[4]*3600+a[5]*60+a[6];</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="s1">      if (mx-t&gt;=10) print FILENAME, substr($4,2), "&gt;=", mx-t, "s", $9, $7;</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="s1">      if (t&gt;mx) mx=t}'</span><span class="w"> </span>portal-access_log*
+</code></pre></div>
+<p><strong>Result:</strong> hundreds of requests per day taking ≥ 10 s, <strong>on both web nodes in the same minutes</strong>.
+Every alert that could be matched against the logs lined up with a slow request.</p>
+<h3 id="44-bots-php-fpm-static-files">4.4 Bots? PHP-FPM? Static files?<a class="headerlink" href="#44-bots-php-fpm-static-files" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Command (short)</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bot traffic</td>
+<td><code>awk -F'"' '{print $6}' access_log \| sort \| uniq -c</code></td>
+<td>growth (AI and search crawlers), <strong>but no correlation</strong> with slow minutes</td>
+</tr>
+<tr>
+<td>PHP-FPM pool</td>
+<td><code>grep "max_children" /var/log/php-fpm/error.log*</code></td>
+<td><strong>not</strong> saturated during alerts</td>
+</tr>
+<tr>
+<td>Static files</td>
+<td>split slow requests into <code>.css/.js/.jpg</code> vs PHP</td>
+<td><strong>only PHP requests</strong> are slow</td>
+</tr>
+<tr>
+<td>Application errors</td>
+<td><code>grep -iE "mysql\|pdo\|deadlock\|timeout" www-error.log*</code></td>
+<td>no errors, requests were just <strong>waiting</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Conclusion:</strong> both web nodes are waiting on a <strong>shared backend</strong> at the same time.</p>
+<h3 id="45-application-config-where-does-database-traffic-go">4.5 Application config: where does database traffic go?<a class="headerlink" href="#45-application-config-where-does-database-traffic-go" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"^DB_HOST"</span><span class="w"> </span>/var/www/app/.env
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"session.save_(handler|path)"</span><span class="w"> </span>/etc/php-fpm.d/www.conf
+</code></pre></div>
+<p><strong>Result:</strong> both web nodes connect <strong>only to <code>db01</code></strong>. Sessions are stored in Redis, and the
+application uses no query cache at all (no Redis, Memcached or APCu).</p>
+<h3 id="46-database-galera-and-mariadb-status">4.6 Database: Galera and MariaDB status<a class="headerlink" href="#46-database-galera-and-mariadb-status" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">SHOW</span><span class="w"> </span><span class="k">GLOBAL</span><span class="w"> </span><span class="n">STATUS</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">Variable_name</span><span class="w"> </span><span class="k">IN</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w"> </span><span class="p">(</span><span class="s1">'wsrep_cluster_size'</span><span class="p">,</span><span class="s1">'wsrep_cluster_status'</span><span class="p">,</span><span class="s1">'wsrep_local_state_comment'</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="s1">'wsrep_flow_control_paused'</span><span class="p">,</span><span class="s1">'Slow_queries'</span><span class="p">,</span><span class="s1">'Max_used_connections'</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="s1">'Innodb_buffer_pool_reads'</span><span class="p">,</span><span class="s1">'Innodb_buffer_pool_read_requests'</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="s1">'Innodb_buffer_pool_wait_free'</span><span class="p">,</span><span class="s1">'Created_tmp_disk_tables'</span><span class="p">);</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">SHOW</span><span class="w"> </span><span class="k">GLOBAL</span><span class="w"> </span><span class="n">VARIABLES</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">Variable_name</span><span class="w"> </span><span class="k">IN</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w"> </span><span class="p">(</span><span class="s1">'innodb_buffer_pool_size'</span><span class="p">,</span><span class="s1">'slow_query_log'</span><span class="p">,</span><span class="s1">'long_query_time'</span><span class="p">,</span><span class="s1">'version'</span><span class="p">);</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wsrep_cluster_status</code> / <code>state</code></td>
+<td>Primary / Synced, 3 nodes</td>
+<td>cluster is healthy</td>
+</tr>
+<tr>
+<td><code>wsrep_flow_control_paused</code></td>
+<td>≈ 0</td>
+<td>replication does not block writes</td>
+</tr>
+<tr>
+<td><code>innodb_buffer_pool_size</code></td>
+<td><strong>128 MB</strong> (default)</td>
+<td>with <strong>26 GB</strong> of data</td>
+</tr>
+<tr>
+<td><code>Innodb_buffer_pool_reads</code></td>
+<td>~35.8 billion</td>
+<td>reads served from disk instead of RAM</td>
+</tr>
+<tr>
+<td><code>Innodb_buffer_pool_wait_free</code></td>
+<td>6.9 million</td>
+<td>waits for a free page in the buffer</td>
+</tr>
+<tr>
+<td><code>Created_tmp_disk_tables</code></td>
+<td>21% of all</td>
+<td>sorts spilling to disk</td>
+</tr>
+<tr>
+<td><code>Slow_queries</code> (&gt; 10 s)</td>
+<td>16,370</td>
+<td>with the slow log turned off</td>
+</tr>
+<tr>
+<td>load average (2 vCPU)</td>
+<td>2.4 / 3.0 / 4.4</td>
+<td>CPU run queue</td>
+</tr>
+</tbody>
+</table>
+<figure class="ad-chart">
+<svg class="ad-svg" viewBox="0 0 920 214" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="InnoDB buffer pool vs data size"><text class="c-title" x="20" y="22">InnoDB buffer pool vs data size</text><rect class="b-data" x="20" y="44" width="880" height="26" rx="5"/><rect class="b-now" x="20" y="44" width="4.2" height="26" rx="5"/><text class="c-leg b-txt" x="34.2" y="62">today: 128 MB (0.5%)</text><text class="c-axis" x="892" y="62" text-anchor="end">data: 26 GB</text><rect class="b-data" x="20" y="100" width="880" height="26" rx="5"/><rect class="b-step" x="20" y="100" width="33.8" height="26" rx="5"/><text class="c-leg b-txt" x="63.8" y="118">step 1: 1 GB</text><text class="c-axis" x="892" y="118" text-anchor="end">data: 26 GB</text><rect class="b-data" x="20" y="156" width="880" height="26" rx="5"/><rect class="b-target" x="20" y="156" width="338.5" height="26" rx="5"/><text class="c-leg b-txt" x="368.5" y="174">after a RAM upgrade: ~10 GB</text><text class="c-axis" x="892" y="174" text-anchor="end">data: 26 GB</text></svg>
+<figcaption>The scale of the problem: 0.5% of the data fits in memory. The plan is 1 GB right away (no restart); after a RAM upgrade the buffer will cover most of the frequently used data.</figcaption>
+</figure>
+
+<div class="admonition warning">
+<p class="admonition-title">Lesson from this step</p>
+<p>A size query against <code>information_schema.tables</code> across hundreds of databases hung for
+over 15 s and loaded production by itself. I stopped it and measured sizes with
+<code>du -s /var/lib/mysql/*/</code> instead, which does not touch the database.</p>
+</div>
+<h3 id="47-caught-live-a-full-table-scan">4.7 Caught live: a full table scan<a class="headerlink" href="#47-caught-live-a-full-table-scan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">user</span><span class="p">,</span><span class="w"> </span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="k">time</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="k">LEFT</span><span class="p">(</span><span class="n">info</span><span class="p">,</span><span class="mi">120</span><span class="p">)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">processlist</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">command</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s1">'Sleep'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">time</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">time</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1">-- portal | 4 s | Sending data | SELECT page_id FROM page WHERE source_id = ? AND source_db = ?</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">EXPLAIN</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="n">page_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">source_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">source_db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">-- type: ALL | key: NULL | rows: 40508      &lt;- no index, full scan of 394 MB</span>
+</code></pre></div>
+<p>In the application code, this query runs in the function that syncs a tenant page to the main
+portal. It runs <strong>on every page save</strong> in the editor panel:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>grep<span class="w"> </span>-rn<span class="w"> </span><span class="s2">"source_id"</span><span class="w"> </span>app/class/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="k">select</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>grep<span class="w"> </span>-rn<span class="w"> </span><span class="s2">"syncPage("</span><span class="w"> </span>app/admin/<span class="w"> </span>app/class/
+</code></pre></div>
+<p>I then checked how many tenants have sync enabled. The setting lives in the <code>configuration</code>
+table of each tenant database:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">for</span><span class="w"> </span>db<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>mysql<span class="w"> </span>-Nse<span class="w"> </span><span class="s2">"SHOW DATABASES LIKE 'tenant\_%'"</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>mysql<span class="w"> </span>-Nse<span class="w"> </span><span class="s2">"SELECT 1 FROM \`</span><span class="nv">$db</span><span class="s2">\`.configuration</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="s2">              WHERE name='SyncEnabled' AND value&gt;0"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># 433</span>
+</code></pre></div>
+<p><strong>433 tenants.</strong> Every page save in any of them scans the whole 394 MB table through a
+128 MB buffer. The table grows with every synced page, so the problem gets worse over time.</p>
+<h3 id="48-night-and-sunday-outages-scheduled-jobs">4.8 Night and Sunday outages: scheduled jobs<a class="headerlink" href="#48-night-and-sunday-outages-scheduled-jobs" title="Permanent link">&para;</a></h3>
+<p>I took the duration of each application cron session from the journal (start and stop of the
+service user's session):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"(Started|Stopped) User Manager for UID 48"</span><span class="w"> </span>journal.log<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'...'</span><span class="w">   </span><span class="c1"># sessions &gt;= 25 s</span>
+</code></pre></div>
+<p>and matched it against the job schedule (<code>app/Console/Kernel.php</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Job</th>
+<th>Alert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01:30 daily</td>
+<td>trash cleanup (pages + files)</td>
+<td><strong>every night</strong></td>
+</tr>
+<tr>
+<td>Sunday 02:00</td>
+<td>weekly jobs (database housekeeping, storage statistics)</td>
+<td>13–17 alerts, up to 15 min outage</td>
+</tr>
+<tr>
+<td>01:10 daily</td>
+<td>"Daily" job, dies every night on the 256 MB <code>memory_limit</code></td>
+<td>occasional</td>
+</tr>
+<tr>
+<td>:15 hourly</td>
+<td>page activation/deactivation</td>
+<td>when it runs &gt; 80 s</td>
+</tr>
+</tbody>
+</table>
+<h3 id="49-what-else-i-checked-and-ruled-out">4.9 What else I checked (and ruled out)<a class="headerlink" href="#49-what-else-i-checked-and-ruled-out" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>stat<span class="w"> </span>-c<span class="w"> </span>%W<span class="w"> </span>/var/lib/mysql/*/<span class="w">          </span><span class="c1"># database creation dates – new tenants</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>mariadb<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"ERROR|corruption|pending fsync"</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>dmesg<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"task abort|I/O error"</span><span class="w">   </span><span class="c1"># + convert times using /proc/uptime</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>awk<span class="w"> </span><span class="s1">'$3 ~ /^sd/ {print $3, $7/$4 " ms read"}'</span><span class="w"> </span>/proc/diskstats
+</code></pre></div>
+<ul>
+<li><strong>Creating 5 new tenant databases</strong> (DDL on Galera) at 11:27–11:36 lined up exactly with alerts.</li>
+<li><strong>InnoDB errors</strong> <code>Database page corruption on disk or a failed read</code> on 3 tables (15–17 Nov), to be verified with <code>CHECK TABLE</code>.</li>
+<li><strong>Storage:</strong> SCSI aborts only in one episode a year earlier, and average disk latency &lt; 1 ms. The current problem is not storage.</li>
+<li><strong>Log retention:</strong> the database server journal reached back only 5 days, because audit records of a health-check command every few seconds filled it up.</li>
+</ul>
+<h2 id="5-root-cause">5. Root cause<a class="headerlink" href="#5-root-cause" title="Permanent link">&para;</a></h2>
+<div class="admonition danger">
+<p class="admonition-title">Root cause</p>
+<p><strong>Node <code>db01</code> is undersized and misconfigured for its role.</strong> The InnoDB buffer
+(128 MB for 26 GB of data), 2 vCPU and all application traffic on one of three nodes
+(with GlusterFS on the same machine) mean any heavier operation blocks the database for
+tens of seconds to minutes. Both web nodes then wait, and monitoring reports a timeout.</p>
+</div>
+<p>Triggers:</p>
+<ol>
+<li>page sync from 400+ tenants, a full table scan on every save (missing index),</li>
+<li>nightly and Sunday application jobs,</li>
+<li>DDL when new tenants are created.</li>
+</ol>
+<h2 id="6-resolution-planned">6. Resolution (planned)<a class="headerlink" href="#6-resolution-planned" title="Permanent link">&para;</a></h2>
+<p>I changed nothing in production. The changes need agreement with the database admin and the application vendor.</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Change</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>innodb_buffer_pool_size</code> 128 MB → 1 GB (online, <code>SET GLOBAL</code>), then 1.5 GB, more RAM later</td>
+<td>DB admin</td>
+</tr>
+<tr>
+<td>1</td>
+<td>index <code>ALTER TABLE page ADD INDEX (source_id, source_db)</code> at night (DDL on Galera blocks the cluster)</td>
+<td>application vendor</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>slow_query_log=ON</code>, <code>long_query_time=2</code></td>
+<td>DB admin</td>
+</tr>
+<tr>
+<td>2</td>
+<td>optimize the 01:30 / Sunday 02:00 / Daily jobs</td>
+<td>application vendor</td>
+</tr>
+<tr>
+<td>3</td>
+<td>proxy in front of Galera (MaxScale / ProxySQL), spread reads across 3 nodes</td>
+<td>infrastructure</td>
+</tr>
+<tr>
+<td>3</td>
+<td>move GlusterFS off the database nodes</td>
+<td>infrastructure</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>CHECK TABLE</code> on the affected tables, upgrade MariaDB 10.11.x</td>
+<td>DB admin</td>
+</tr>
+<tr>
+<td>3</td>
+<td>credentials in world-readable files and in the audit log: rotate and restrict access</td>
+<td>security</td>
+</tr>
+</tbody>
+</table>
+<p>Buffer change procedure (step by step, with rollback):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>free<span class="w"> </span>-m<span class="p">;</span><span class="w"> </span>ps<span class="w"> </span>-C<span class="w"> </span>mariadbd,glusterfsd<span class="w"> </span>-o<span class="w"> </span><span class="nv">rss</span><span class="o">=</span>,comm<span class="o">=</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mysql<span class="w"> </span>-e<span class="w"> </span><span class="s2">"SET GLOBAL innodb_buffer_pool_size = 1073741824;"</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mysql<span class="w"> </span>-e<span class="w"> </span><span class="s2">"SHOW STATUS LIKE 'Innodb_buffer_pool_resize_status';"</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># persist: [mysqld] innodb_buffer_pool_size = 1G</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># rollback: SET GLOBAL innodb_buffer_pool_size = 134217728;</span>
+</code></pre></div>
+<h2 id="7-verification-after-rollout">7. Verification (after rollout)<a class="headerlink" href="#7-verification-after-rollout" title="Permanent link">&para;</a></h2>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> growth rate of <code>Innodb_buffer_pool_reads</code> before vs after (hourly comparison)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>EXPLAIN</code> of the sync query: <code>type: ref</code>, new index used</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Zabbix alert count: one week before vs one week after</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> slow log: remaining queries &gt; 2 s</li>
+</ul>
+<h2 id="8-lessons-learned">8. Lessons learned<a class="headerlink" href="#8-lessons-learned" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Averages lie.</strong> A 0.1 ms average disk read and a "healthy" cluster do not rule out
+  multi-second stalls. Look at individual events.</li>
+<li><strong>The access log holds more than it seems.</strong> Entry order lets you estimate request duration
+  even without <code>%D</code> in <code>LogFormat</code>. Add it anyway.</li>
+<li><strong>HA cluster ≠ load distribution.</strong> Three Galera nodes, but the application only knows one.</li>
+<li><strong>Defaults are not configuration.</strong> <code>innodb_buffer_pool_size=128M</code> in production means
+  nobody tuned the database.</li>
+<li><strong>Diagnostics must not hurt.</strong> Heavy <code>information_schema</code> queries and a recursive <code>grep</code> over
+  a 266 GB network volume can load production by themselves. I stopped both.</li>
+<li><strong>Data first, conclusions second.</strong> The "bots", "network", "Zabbix" and "storage" hypotheses
+  all made sense, and the data rejected each of them.</li>
+<li><strong>Log retention is part of monitoring.</strong> Without history from before 14 Nov there was no way
+  to prove what changed that day.</li>
+</ul>
+<h2 id="9-evidence-anonymized">9. Evidence (anonymized)<a class="headerlink" href="#9-evidence-anonymized" title="Permanent link">&para;</a></h2>
+<ul>
+<li>30-day alert distribution: 248 events, fixed 01:30 and Sunday 02:00, jump from 14 Nov.</li>
+<li><code>EXPLAIN</code> of the sync query: <code>type: ALL</code>, <code>rows: 40508</code>.</li>
+<li>InnoDB and Galera counters from <code>SHOW GLOBAL STATUS</code>.</li>
+<li>Read-only diagnostic script: <a href="https://github.com/programmingbygrzegorz/AdminDay/blob/main/scripts/bash/db-node-diagnostics.sh"><code>scripts/bash/db-node-diagnostics.sh</code></a>.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Workdays">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Workdays
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../incidents/" class="md-footer__link md-footer__link--next" aria-label="Next: Incidents">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Incidents
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      AdminDay · dane w dokumentach są zanonimizowane / all case data is anonymized
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.525ec568.min.js"></script>
+      
+    
+  </body>
+</html>
