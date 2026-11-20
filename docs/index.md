@@ -10,7 +10,7 @@ hide:
 <p class="ad-eyebrow">IT Operations Journal · dziennik administratora</p>
 <h1 class="ad-title">AdminDay<span class="ad-dot">_</span></h1>
 <p class="ad-lead">Prawdziwe problemy z pracy administratora IT: od alertu w monitoringu, przez diagnostykę i polecenia, do przyczyny i wniosków. Dane zanonimizowane, polecenia i wyniki prawdziwe.</p>
-<a class="md-button md-button--primary" href="workdays/day-001-cms-db-saturation/">Najnowszy wpis: Day 001</a>
+<a class="md-button md-button--primary" href="workdays/day-003-media-rename-ticket/">Najnowszy wpis: Day 003</a>
 <a class="md-button" href="workdays/">Dziennik pracy</a>
 </div>
 <div class="ad-term" aria-label="Przykładowy przebieg diagnozy">
@@ -30,7 +30,7 @@ hide:
 </section>
 
 <div class="ad-kpis">
-<div class="ad-kpi"><small>wpisy</small><b>1</b><span>przypadek rzeczywisty, zanonimizowany</span></div>
+<div class="ad-kpi"><small>wpisy</small><b>3</b><span>przypadek rzeczywisty, zanonimizowany</span></div>
 <div class="ad-kpi hot"><small>alerty przeanalizowane</small><b>248</b><span>30 dni historii z monitoringu</span></div>
 <div class="ad-kpi warn"><small>hipotezy</small><b>10</b><span>6 obalonych danymi, 4 potwierdzone</span></div>
 <div class="ad-kpi ok"><small>zmiany na produkcji</small><b>0</b><span>diagnoza tylko na odczycie</span></div>
@@ -40,21 +40,18 @@ hide:
 
 <div class="ad-entry">
 <div>
-<span class="ad-pill hot">incydent · rzeczywisty</span>
-<h3><a href="workdays/day-001-cms-db-saturation/">Day 001 – Przestoje portalu CMS: przeciążona baza Galera</a></h3>
-<p>248 alertów „timeout 15 s” w miesiąc. Fronty zdrowe, sieć czysta, a przyczyna siedziała w bazie: bufor 128 MB na 26 GB danych, cały ruch na jednym z trzech węzłów i zapytanie przeglądające 394 MB przy każdym zapisie strony.</p>
-<span class="ad-pill">Linux</span> <span class="ad-pill">MariaDB Galera</span> <span class="ad-pill">Apache / PHP-FPM</span> <span class="ad-pill">Zabbix</span>
+<span class="ad-pill hot">zgłoszenie · rzeczywiste</span>
+<h3><a href="workdays/day-003-media-rename-ticket/">Day 003 – Zgłoszenie: zmiana nazwy pliku w CMS nie zostaje zapisana</a></h3>
+<p>Przyjęcie i klasyfikacja zgłoszenia od jednostki: po zmianie nazwy wgranego pliku zostaje stara nazwa albo pojawia się sufiks „01”. Wpis pokazuje rozpoznanie objawu (triage) i zalecenie tymczasowe; analiza przyczyny jest poza zakresem.</p>
+<span class="ad-pill">CMS</span> <span class="ad-pill">media</span> <span class="ad-pill">triage</span> <span class="ad-pill">wielojęzyczność</span>
 </div>
-<figure class="ad-chart">
---8<-- "day001-daily.pl.svg"
-</figure>
 </div>
 
 ## Obszary
 
 <div class="grid cards" markdown>
 
--   :material-calendar-check:{ .lg .middle } __Dziennik pracy__ <span class="ad-live">1 wpis</span>
+-   :material-calendar-check:{ .lg .middle } __Dziennik pracy__ <span class="ad-live">3 wpisy</span>
 
     ---
 

@@ -10,7 +10,7 @@ hide:
 <p class="ad-eyebrow">IT Operations Journal</p>
 <h1 class="ad-title">AdminDay<span class="ad-dot">_</span></h1>
 <p class="ad-lead">Real problems from IT administration work: from a monitoring alert, through diagnostics and commands, to the root cause and lessons learned. Data anonymized, commands and results real.</p>
-<a class="md-button md-button--primary" href="workdays/day-001-cms-db-saturation/">Latest entry: Day 001</a>
+<a class="md-button md-button--primary" href="workdays/day-003-media-rename-ticket/">Latest entry: Day 003</a>
 <a class="md-button" href="workdays/">Workdays</a>
 </div>
 <div class="ad-term" aria-label="Sample diagnostic session">
@@ -30,7 +30,7 @@ hide:
 </section>
 
 <div class="ad-kpis">
-<div class="ad-kpi"><small>entries</small><b>1</b><span>real case, anonymized</span></div>
+<div class="ad-kpi"><small>entries</small><b>3</b><span>real case, anonymized</span></div>
 <div class="ad-kpi hot"><small>alerts analyzed</small><b>248</b><span>30 days of monitoring history</span></div>
 <div class="ad-kpi warn"><small>hypotheses</small><b>10</b><span>6 rejected by data, 4 confirmed</span></div>
 <div class="ad-kpi ok"><small>production changes</small><b>0</b><span>read-only diagnostics</span></div>
@@ -40,21 +40,18 @@ hide:
 
 <div class="ad-entry">
 <div>
-<span class="ad-pill hot">incident · real</span>
-<h3><a href="workdays/day-001-cms-db-saturation/">Day 001 – CMS portal outages: an overloaded Galera database</a></h3>
-<p>248 "15 s timeout" alerts in a month. Healthy web nodes, clean network, and the cause sat in the database: a 128 MB buffer for 26 GB of data, all traffic on one of three nodes, and a query scanning 394 MB on every page save.</p>
-<span class="ad-pill">Linux</span> <span class="ad-pill">MariaDB Galera</span> <span class="ad-pill">Apache / PHP-FPM</span> <span class="ad-pill">Zabbix</span>
+<span class="ad-pill hot">ticket · real</span>
+<h3><a href="workdays/day-003-media-rename-ticket/">Day 003 – Ticket: a media file rename that never saves</a></h3>
+<p>Intake and triage of a unit's ticket: after renaming an uploaded file the old name stays or a "01" suffix appears. The entry covers symptom triage and an interim recommendation; root-cause analysis is out of scope.</p>
+<span class="ad-pill">CMS</span> <span class="ad-pill">media</span> <span class="ad-pill">triage</span> <span class="ad-pill">multilingual</span>
 </div>
-<figure class="ad-chart">
---8<-- "day001-daily.en.svg"
-</figure>
 </div>
 
 ## Areas
 
 <div class="grid cards" markdown>
 
--   :material-calendar-check:{ .lg .middle } __Workdays__ <span class="ad-live">1 entry</span>
+-   :material-calendar-check:{ .lg .middle } __Workdays__ <span class="ad-live">3 entries</span>
 
     ---
 
