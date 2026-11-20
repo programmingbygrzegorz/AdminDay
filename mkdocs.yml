@@ -98,6 +98,8 @@ nav:
   - Dziennik pracy:
       - workdays/index.md
       - workdays/day-001-cms-db-saturation.md
+      - workdays/day-002-s3-mount-oom.md
+      - workdays/day-003-media-rename-ticket.md
   - Incydenty:
       - incidents/index.md
   - O projekcie:
