@@ -100,6 +100,7 @@ nav:
       - workdays/day-001-cms-db-saturation.md
       - workdays/day-002-s3-mount-oom.md
       - workdays/day-003-media-rename-ticket.md
+      - workdays/day-004-lab-cluster-power-loss.md
   - Incydenty:
       - incidents/index.md
   - O projekcie:
