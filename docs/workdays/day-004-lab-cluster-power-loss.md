@@ -25,6 +25,11 @@ tags: [lab, proxmox, ceph, journald, zasilanie, ups, nut, diagnostyka]
     Polecenia i wyniki są prawdziwe, zmienione są tylko identyfikatory. Szczegóły:
     [Zasady anonimizacji](../about/anonymization.md).
 
+!!! note "Zrzuty terminala"
+    Obrazy wyników to odwzorowanie prawdziwego wyjścia poleceń z konsoli węzłów, wygenerowane
+    skryptem `scripts/python/make_terminal_shots.py` z zanonimizowanych plików w
+    `docs/assets/screens/src/`. Zmienione są tylko nazwy hostów, identyfikatory rozruchów są skrócone.
+
 ## 1. Scenariusz
 
 Tym razem biorę na tapetę dwa serwery. Są częścią jednego z moich labów: dwuwęzłowy klaster
@@ -116,6 +121,12 @@ reboot  system boot  6.8.12-4-pve  Fri Nov 20 16:34:43 2026  still running
 reboot  system boot  6.8.12-4-pve  Wed Nov 18 21:28:10 2026  still running
 ```
 
+
+<figure markdown="span">
+  ![pve1: historia rozruchów i brak wpisów „shutdown”](../assets/screens/day004-01-boots.svg){ loading=lazy }
+  <figcaption>pve1: historia rozruchów i brak wpisów „shutdown”</figcaption>
+</figure>
+
 Dwie rzeczy rzucają się w oczy. Po pierwsze `last -x` nie zawiera **ani jednego** wpisu `shutdown`.
 Po drugie stare rozruchy mają status `still running`. To znaczy, że system nigdy nie zapisał,
 że kończy pracę.
@@ -156,6 +167,12 @@ done
 0 0
 ```
 
+
+<figure markdown="span">
+  ![pve1: licznik sekwencji zamykania w każdym rozruchu](../assets/screens/day004-02-shutdown-count.svg){ loading=lazy }
+  <figcaption>pve1: licznik sekwencji zamykania w każdym rozruchu</figcaption>
+</figure>
+
 **0 we wszystkich rozruchach.** Ani jednego poprawnego wyłączenia w historii pve1.
 
 ### 4.3 Czy zabił je system? (H1, H2)
@@ -174,6 +191,12 @@ journalctl -b -1 -p err --no-pager -o short-iso | grep -v calc_pg_upmaps
   MCE, przegrzania i błędów I/O.
 - Błędy z poprzedniego rozruchu to wyłącznie start klastra (`quorum_initialize failed` przez kilka
   sekund, zanim wstał corosync), nic przed końcem pracy.
+
+
+<figure markdown="span">
+  ![pve1: ostatnie wpisy przed utratą zasilania i zero wpisów OOM](../assets/screens/day004-03-last-lines.svg){ loading=lazy }
+  <figcaption>pve1: ostatnie wpisy przed utratą zasilania i zero wpisów OOM</figcaption>
+</figure>
 
 H2 nie znajduje potwierdzenia. Zawieszenie jądra zwykle zostawia ślad (`soft lockup`, `hung task`,
 watchdog), a tu log kończy się na zwykłym wpisie.
@@ -213,6 +236,12 @@ Pusty wynik. **Żadna VM nie ma `onboot: 1`**, więc `startall` przy rozruchu ni
 uruchomić. Stąd objaw „maszyny się wyłączają”. W rzeczywistości padał cały węzeł, a maszyny
 po prostu nie wstawały razem z nim.
 
+
+<figure markdown="span">
+  ![pve1: log zadań – tylko starty, brak autostartu maszyn](../assets/screens/day004-04-tasks.svg){ loading=lazy }
+  <figcaption>pve1: log zadań – tylko starty, brak autostartu maszyn</figcaption>
+</figure>
+
 ### 4.6 Porównanie obu węzłów (H3)
 
 Te same polecenia na pve2:
@@ -237,6 +266,12 @@ ssh root@pve2 'journalctl --list-boots --no-pager | tail -8'
 | 18.11 | 21:28:11 | 21:27:24 |
 | 20.11 | 16:34:44 | 16:34:40 |
 
+
+<figure markdown="span">
+  ![pve2: historia rozruchów – starty w tych samych minutach co pve1](../assets/screens/day004-05-pve2-boots.svg){ loading=lazy }
+  <figcaption>pve2: historia rozruchów – starty w tych samych minutach co pve1</figcaption>
+</figure>
+
 **Starty co do minuty, w każdym przypadku.** Dwa niezależne komputery nie uruchamiają się
 w tej samej minucie przypadkiem. Albo włącza je jedna osoba, albo wraca im jednocześnie prąd
 (BIOS z opcją włączenia po powrocie zasilania).
@@ -253,6 +288,12 @@ journalctl -b -1 --since '2026-11-20 09:15' -o short-iso \
 09:17:01 CRON[565736]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
 09:28:32 pmxcfs[923]: [dcdb] notice: data verification successful
 ```
+
+
+<figure markdown="span">
+  ![pve1: brak śladu utraty pve2 w corosync przed końcem pracy](../assets/screens/day004-06-before-crash.svg){ loading=lazy }
+  <figcaption>pve1: brak śladu utraty pve2 w corosync przed końcem pracy</figcaption>
+</figure>
 
 O 09:28:32 **oba** węzły zapisały ten sam cykliczny wpis `pmxcfs`, a potem do końca pracy
 pve1 logował już tylko ceph-mgr. Gdyby pve2 padł o 09:28, pve1 zapisałby utratę sąsiada:

@@ -1,0 +1,13 @@
+pve1 · czy któryś rozruch zakończył się zamknięciem systemu?
+$ pve1 for b in $(journalctl --list-boots | awk 'NR>1{print $1}' | tail -8); do
+  printf '%s ' $b
+  journalctl -b $b -q | grep -cE 'System is powering down|System is rebooting|Stopping.*pve-guests'
+done
+!-7 0
+!-6 0
+!-5 0
+!-4 0
+!-3 0
+!-2 0
+!-1 0
+ 0 0
