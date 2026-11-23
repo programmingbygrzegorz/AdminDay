@@ -670,15 +670,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#47-a-co-z-ups-em" class="md-nav__link">
-    <span class="md-ellipsis">
-      4.7 A co z UPS-em?
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1025,15 +1016,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#47-a-co-z-ups-em" class="md-nav__link">
-    <span class="md-ellipsis">
-      4.7 A co z UPS-em?
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1131,12 +1113,12 @@
 <span class="ad-pill hot">nieplanowane wyłączenia</span>
 <span class="ad-pill">lab · przypadek rzeczywisty</span>
 <span class="ad-pill ok">przyczyna zawężona: zasilanie</span>
-<span class="ad-pill warn">do potwierdzenia na UPS</span>
+<span class="ad-pill warn">brak UPS</span>
 </div>
 
 <div class="ad-kpis">
 <div class="ad-kpi hot"><small>nieczyste zakończenia pracy</small><b>7 / 7</b><span>każdy poprzedni rozruch pve1 urwany bez zamknięcia systemu</span></div>
-<div class="ad-kpi warn"><small>komunikacja z UPS</small><b>brak</b><span>ani NUT, ani apcupsd na żadnym węźle</span></div>
+<div class="ad-kpi warn"><small>ochrona zasilania</small><b>brak</b><span>bez UPS-a, oba węzły z jednego obwodu</span></div>
 <div class="ad-kpi ok"><small>OOM / panic / błędy sprzętu</small><b>0</b><span>w logach z całego roku</span></div>
 <div class="ad-kpi ok"><small>zmiany w trakcie diagnozy</small><b>0</b><span>tylko polecenia do odczytu</span></div>
 </div>
@@ -1149,8 +1131,8 @@ Polecenia i wyniki są prawdziwe, zmienione są tylko identyfikatory. Szczegół
 </div>
 <h2 id="1-scenariusz">1. Scenariusz<a class="headerlink" href="#1-scenariusz" title="Permanent link">&para;</a></h2>
 <p>Tym razem biorę na tapetę dwa serwery. Są częścią jednego z moich labów: dwuwęzłowy klaster
-Proxmox VE z Ceph. Stoją w sieci wewnętrznej, nie są wystawione do Internetu i są podłączone
-do UPS-a. Mimo to w ostatnim czasie co jakiś czas <strong>same się wyłączały</strong>, a po powrocie
+Proxmox VE z Ceph. Stoją w sieci wewnętrznej, nie są wystawione do Internetu i <strong>nie mają UPS-a</strong>.
+W ostatnim czasie co jakiś czas <strong>same się wyłączały</strong>, a po powrocie
 maszyny wirtualne zostawały zatrzymane.</p>
 <p>Podejrzenie wzbudziło to, że <strong>wyłączały się oba</strong>. Pojedynczy serwer może mieć swoją
 usterkę: zasilacz, przegrzanie, dysk. Dwa naraz to sygnał, że przyczyna jest wspólna.</p>
@@ -1160,8 +1142,8 @@ w konfiguracji, wyłącznie na odczycie.</p>
 <figure class="ad-chart">
 
 <pre class="mermaid"><code>flowchart LR
-  UPS["UPS&lt;br/&gt;(brak połączenia danych z serwerami)"] ==&gt; P1
-  UPS ==&gt; P2
+  PWR["Gniazdko / listwa&lt;br/&gt;(bez UPS)"] ==&gt; P1
+  PWR ==&gt; P2
   subgraph K["Klaster Proxmox VE 8.3 (2 węzły, corosync)"]
     P1["pve1&lt;br/&gt;Ceph: MON, MGR, 2× OSD"]
     P2["pve2&lt;br/&gt;Ceph: MON, 1× OSD"]
@@ -1170,15 +1152,15 @@ w konfiguracji, wyłącznie na odczycie.</p>
   P1 --- V1["VM: firewall&lt;br/&gt;VM: SIEM"]
   P2 --- V2["VM: testowa"]</code></pre>
 
-<figcaption>Oba węzły zasilane z tego samego UPS-a. Serwery nie mają z nim połączenia
-danych (USB/sieć), więc nie wiedzą, że pracują na baterii.</figcaption>
+<figcaption>Oba węzły zasilane z tego samego obwodu, bez UPS-a. Każda przerwa w zasilaniu
+gasi je natychmiast i jednocześnie.</figcaption>
 </figure>
 
 <ul>
 <li><strong>Węzły:</strong> pve1, pve2: Proxmox VE 8.3 (Debian 12), 4 rdzenie, ~8 GB RAM każdy.</li>
 <li><strong>Klaster:</strong> 2 węzły, 2 głosy, corosync/knet. Storage współdzielony: Ceph (3 OSD, pula RBD).</li>
 <li><strong>Maszyny:</strong> firewall i SIEM na pve1, maszyna testowa na pve2.</li>
-<li><strong>Zasilanie:</strong> wspólny UPS.</li>
+<li><strong>Zasilanie:</strong> wspólny obwód, bez UPS-a.</li>
 <li><strong>Dostęp:</strong> konsola roota w panelu Proxmoxa, SSH między węzłami.</li>
 </ul>
 <h2 id="3-problem">3. Problem<a class="headerlink" href="#3-problem" title="Permanent link">&para;</a></h2>
@@ -1216,7 +1198,7 @@ danych (USB/sieć), więc nie wiedzą, że pracują na baterii.</figcaption>
 </table>
 <h2 id="4-diagnostyka">4. Diagnostyka<a class="headerlink" href="#4-diagnostyka" title="Permanent link">&para;</a></h2>
 <p>Szedłem od ogółu do szczegółu: historia rozruchów → sposób zakończenia każdego rozruchu →
-przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów → komunikacja z UPS.</p>
+przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów.</p>
 <h3 id="przebieg-w-skrocie">Przebieg w skrócie<a class="headerlink" href="#przebieg-w-skrocie" title="Permanent link">&para;</a></h3>
 <ul class="ad-timeline">
 <li><b>Historia rozruchów</b><span>8 rozruchów na pve1, nowy rozruch po każdej „awarii”.</span></li>
@@ -1224,7 +1206,6 @@ przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów → komunik
 <li><b>Jądro czyste</b><span>Brak OOM, panic, MCE, przegrzania i błędów dysków.</span></li>
 <li><b>Proxmox niczego nie zatrzymał</b><span>W logu zadań tylko starty. Ani jednego <code>qmstop</code>.</span></li>
 <li class="hot"><b>Oba węzły padają i wstają razem</b><span>Te same minuty startu, brak śladu utraty sąsiada w corosync.</span></li>
-<li class="hot"><b>Serwery nie rozmawiają z UPS-em</b><span>Brak NUT/apcupsd, brak UPS-a na USB.</span></li>
 <li class="ok"><b>Maszyny nie wstają, bo nie mają autostartu</b><span>Brak <code>onboot</code> we wszystkich VM.</span></li>
 </ul>
 
@@ -1375,39 +1356,21 @@ nie logował, bo nie ma na nim aktywnego ceph-mgr. <strong>Oba węzły zgasły w
 <p>Wyróżniają się tylko dwa dzisiejsze rozruchy pve2 (17:45 i 17:47). To były ręczne,
 poprawne restarty („Bulk shutdown”), z sekwencją zamykania w logu. Dla porównania: rozruch
 zakończony 20.11 ma tam 0 takich wpisów.</p>
-<h3 id="47-a-co-z-ups-em">4.7 A co z UPS-em?<a class="headerlink" href="#47-a-co-z-ups-em" title="Permanent link">&para;</a></h3>
-<p>Serwery są podpięte do UPS-a, a mimo to padają bez zamknięcia systemu. Sprawdzenie,
-czy węzły w ogóle wiedzą o UPS-ie:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^ii +(nut|nut-client|nut-server|apcupsd) '</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>lsusb
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>systemctl<span class="w"> </span>is-active<span class="w"> </span>nut-monitor<span class="w"> </span>apcupsd
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>## pve1
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>Bus 003 Device 002: ID 0781:55ae SanDisk Corp. Extreme 55AE
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>inactive
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>inactive
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>## pve2
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>Bus 003 Device 003: ID 04e8:61f5 Samsung Electronics Co., Ltd Portable SSD T5
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>inactive
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>inactive
-</code></pre></div>
-<p>Na USB są tylko dyski. <strong>Nie ma oprogramowania UPS (NUT, apcupsd) ani połączenia
-z UPS-em.</strong> Serwery nie dostają informacji „praca na baterii” ani „niski stan baterii”,
-więc nie mają jak się zamknąć. Gdy UPS przestaje podawać napięcie, odcina oba naraz.</p>
 <h2 id="5-przyczyna">5. Przyczyna<a class="headerlink" href="#5-przyczyna" title="Permanent link">&para;</a></h2>
 <div class="admonition danger">
 <p class="admonition-title">Root cause (najbardziej prawdopodobna)</p>
-<p><strong>Oba węzły tracą zasilanie jednocześnie, za UPS-em.</strong> Każdy rozruch kończy się bez
-sekwencji zamykania, w logach nie ma OOM, panic ani błędów sprzętu, Proxmox nie wydał
-żadnego polecenia zatrzymania, a węzły startują w tej samej minucie.</p>
-<p>Serwery nie mają połączenia z UPS-em (brak NUT), więc przy dłuższym zaniku prądu pracują
-na baterii do jej wyczerpania i gasną twardo. Możliwe też, że UPS sam odcina wyjście:
-zużyta bateria, przeciążenie, test baterii lub przełączanie przy wahaniach napięcia.</p>
+<p><strong>Oba węzły tracą zasilanie jednocześnie.</strong> Każdy rozruch kończy się bez sekwencji
+zamykania, w logach nie ma OOM, panic ani błędów sprzętu, Proxmox nie wydał żadnego
+polecenia zatrzymania, a węzły startują w tej samej minucie.</p>
+<p>Serwery nie mają UPS-a, więc każda przerwa w zasilaniu wyłącza je natychmiast i bez
+zamknięcia systemu: chwilowy zanik lub spadek napięcia w sieci, zadziałanie bezpiecznika
+albo różnicówki, wyłączenie lub uszkodzenie wspólnej listwy.</p>
 <p><strong>Dlaczego VM „się wyłączają”:</strong> żadna maszyna nie ma <code>onboot</code>, więc po powrocie zasilania
 węzły wstają, a maszyny zostają zatrzymane.</p>
 </div>
-<p>Czego <strong>nie</strong> potwierdzam z samych serwerów: co dokładnie zrobił UPS. To wymaga jego
-dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NUT.</p>
+<p>Czego <strong>nie</strong> potwierdzam z samych serwerów: co dokładnie przerwało zasilanie. Do sprawdzenia:
+czy w tych dniach były zaniki prądu w budynku, czy coś innego w tym samym obwodzie też się
+wyłączało, oraz stan listwy i wtyczek.</p>
 <h2 id="6-rozwiazanie">6. Rozwiązanie<a class="headerlink" href="#6-rozwiazanie" title="Permanent link">&para;</a></h2>
 <h3 id="natychmiastowe">Natychmiastowe<a class="headerlink" href="#natychmiastowe" title="Permanent link">&para;</a></h3>
 <p>Brak zmian w trakcie diagnozy. Wszystkie polecenia były tylko do odczytu.</p>
@@ -1423,13 +1386,18 @@ dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NU
 <tbody>
 <tr>
 <td>1</td>
-<td>Odczytać dziennik zdarzeń UPS-a, sprawdzić stan baterii, obciążenie i datę ostatniej wymiany</td>
-<td>potwierdzenie lub obalenie hipotezy, wybór: wymiana baterii / większy UPS</td>
+<td>Sprawdzić obwód: listwę, wtyczki, bezpiecznik, czy zaniki pokrywają się z innymi urządzeniami w domu</td>
+<td>potwierdzenie przyczyny</td>
 </tr>
 <tr>
 <td>1</td>
-<td>Połączyć UPS z jednym węzłem (USB) i zainstalować <strong>NUT</strong> (<code>nut-server</code>), na drugim węźle <code>nut-client</code></td>
-<td>przy niskiej baterii oba węzły zamykają się poprawnie, Ceph i maszyny bez ryzyka uszkodzenia</td>
+<td><strong>UPS</strong> dla obu węzłów (line-interactive, z portem USB)</td>
+<td>krótkie zaniki i spadki napięcia przestają wyłączać serwery</td>
+</tr>
+<tr>
+<td>1</td>
+<td><strong>NUT</strong>: UPS przez USB do jednego węzła (<code>nut-server</code>), drugi węzeł jako <code>nut-client</code></td>
+<td>przy dłuższym zaniku oba węzły zamykają się poprawnie, Ceph i VM bez ryzyka uszkodzenia</td>
 </tr>
 <tr>
 <td>1</td>
@@ -1443,8 +1411,8 @@ dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NU
 </tr>
 <tr>
 <td>2</td>
-<td>Alert w monitoringu (Zabbix) na restart węzła i na stan UPS z NUT</td>
-<td>informacja o zdarzeniu w chwili, gdy się dzieje, a nie gdy ktoś zauważy wyłączoną VM</td>
+<td>Alert w monitoringu (Zabbix) na restart węzła, później też na stan UPS z NUT</td>
+<td>informacja o zdarzeniu od razu, a nie gdy ktoś zauważy wyłączoną VM</td>
 </tr>
 <tr>
 <td>3</td>
@@ -1453,22 +1421,22 @@ dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NU
 </tr>
 </tbody>
 </table>
-<p>Przykład konfiguracji NUT do wdrożenia (węzeł z kablem USB):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>apt<span class="w"> </span>install<span class="w"> </span>nut
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>nut-scanner<span class="w"> </span>-U<span class="w">                       </span><span class="c1"># wykrycie UPS-a na USB</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1"># /etc/nut/nut.conf:     MODE=netserver</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># /etc/nut/ups.conf:     [ups] driver=usbhid-ups port=auto</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="c1"># /etc/nut/upsd.conf:    LISTEN 0.0.0.0 3493   (żeby drugi węzeł mógł się podłączyć)</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># /etc/nut/upsd.users:   użytkownik dla upsmon (master) i dla drugiego węzła (slave)</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># /etc/nut/upsmon.conf:  MONITOR ups@localhost 1 &lt;użytkownik&gt; &lt;hasło&gt; primary</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>systemctl<span class="w"> </span>restart<span class="w"> </span>nut-server<span class="w"> </span>nut-monitor
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>upsc<span class="w"> </span>ups@localhost<span class="w">                  </span><span class="c1"># stan baterii, obciążenie, status OL/OB/LB</span>
+<p>Przykład konfiguracji NUT po zakupie UPS-a (węzeł z kablem USB):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>apt<span class="w"> </span>install<span class="w"> </span>nut
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>nut-scanner<span class="w"> </span>-U<span class="w">                       </span><span class="c1"># wykrycie UPS-a na USB</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># /etc/nut/nut.conf:     MODE=netserver</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># /etc/nut/ups.conf:     [ups] driver=usbhid-ups port=auto</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="c1"># /etc/nut/upsd.conf:    LISTEN 0.0.0.0 3493   (żeby drugi węzeł mógł się podłączyć)</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c1"># /etc/nut/upsd.users:   użytkownik dla upsmon (primary) i dla drugiego węzła (secondary)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="c1"># /etc/nut/upsmon.conf:  MONITOR ups@localhost 1 &lt;użytkownik&gt; &lt;hasło&gt; primary</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>systemctl<span class="w"> </span>restart<span class="w"> </span>nut-server<span class="w"> </span>nut-monitor
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>upsc<span class="w"> </span>ups@localhost<span class="w">                  </span><span class="c1"># stan baterii, obciążenie, status OL/OB/LB</span>
 </code></pre></div>
 <p>Na drugim węźle <code>MODE=netclient</code> i <code>MONITOR ups@&lt;węzeł-z-UPS&gt; 1 &lt;użytkownik&gt; &lt;hasło&gt; secondary</code>.</p>
 <h2 id="7-weryfikacja-po-wdrozeniu">7. Weryfikacja (po wdrożeniu)<a class="headerlink" href="#7-weryfikacja-po-wdrozeniu" title="Permanent link">&para;</a></h2>
 <ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>upsc</code> na obu węzłach pokazuje status <code>OL</code> (zasilanie z sieci)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> test: odłączenie UPS-a od gniazdka → status <code>OB</code>, zdarzenie w logu i w monitoringu</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> UPS zainstalowany, <code>upsc</code> na obu węzłach pokazuje status <code>OL</code> (zasilanie z sieci)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> test: odłączenie UPS-a od gniazdka → serwery działają dalej, status <code>OB</code>, zdarzenie w logu i w monitoringu</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> test kontrolowanego zamknięcia (<code>upsmon -c fsd</code>) → w logu <code>System is powering down</code></li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> po włączeniu węzłów maszyny startują same, w ustalonej kolejności</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> w kolejnych tygodniach: każdy koniec rozruchu ma sekwencję zamykania</li>
@@ -1483,8 +1451,8 @@ dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NU
   sprawę szybciej niż szukanie usterki w każdym z osobna.</li>
 <li><strong>Pozorne różnice w czasie trzeba sprawdzić.</strong> pve2 „kończył” 40 minut wcześniej tylko
   dlatego, że był cichszy w logach. Brak wpisów corosync o utracie sąsiada to rozstrzygnął.</li>
-<li><strong>UPS bez połączenia z serwerem chroni tylko przed krótkimi przerwami.</strong> Bez NUT serwer
-  nie wie, że bateria się kończy, i gaśnie tak samo jak bez UPS-a, tylko później.</li>
+<li><strong>Klaster bez UPS-a to dwa serwery z jednym wspólnym wyłącznikiem.</strong> Redundancja węzłów
+  nic nie daje, gdy oba wiszą na tej samej listwie. UPS z NUT to pierwszy zakup do takiego labu.</li>
 <li><strong>Autostart maszyn to konfiguracja, o której łatwo zapomnieć.</strong> Bez <code>onboot</code> każda przerwa
   w zasilaniu zamienia się w ręczną interwencję.</li>
 </ul>
@@ -1494,7 +1462,6 @@ dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NU
 <li>Licznik sekwencji zamykania = 0 dla wszystkich poprzednich rozruchów pve1.</li>
 <li>Log zadań Proxmoxa: wyłącznie <code>startall</code> i <code>qmstart</code>, brak <code>qmstop</code>/<code>qmshutdown</code>.</li>
 <li>Brak wpisów OOM w całym roku i brak błędów jądra przed końcem rozruchów.</li>
-<li>Brak pakietów NUT/apcupsd i brak UPS-a na liście urządzeń USB.</li>
 </ul>
 
 
