@@ -1,0 +1,15 @@
+pve1 · historia rozruchów
+$ pve1 journalctl --list-boots --no-pager | tail -8
+ -7 a174f9f4…  Thu 2026-01-08 20:30:15 CET   Tue 2026-02-03 12:26:38 CET
+ -6 2b129f4b…  Tue 2026-02-03 14:20:01 CET   Thu 2026-02-05 08:48:51 CET
+ -5 6fc0595d…  Wed 2026-05-20 20:27:18 CEST  Tue 2026-05-26 20:38:53 CEST
+ -4 47e5f979…  Mon 2026-06-01 18:50:17 CEST  Fri 2026-06-12 16:58:40 CEST
+ -3 22a84e29…  Sat 2026-06-13 13:37:19 CEST  Sat 2026-06-13 14:10:00 CEST
+ -2 7608a957…  Sat 2026-06-13 14:29:34 CEST  Fri 2026-07-17 05:59:14 CEST
+ -1 bb1a34e0…  Wed 2026-11-18 21:28:11 CET   Fri 2026-11-20 10:09:29 CET
+  0 36550b96…  Fri 2026-11-20 16:34:44 CET   Mon 2026-11-23 19:30:37 CET
+$ pve1 last -x -F | grep -E 'reboot|shutdown' | head -4
+!reboot  system boot  6.8.12-4-pve  Fri Nov 20 16:34:43 2026  still running
+!reboot  system boot  6.8.12-4-pve  Wed Nov 18 21:28:10 2026  still running
+!reboot  system boot  6.8.12-4-pve  Sat Jun 13 14:29:33 2026  still running
+~# ani jednego wpisu "shutdown"

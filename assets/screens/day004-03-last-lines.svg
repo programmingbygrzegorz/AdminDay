@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="823" height="195" viewBox="0 0 823 195" role="img" aria-label="pve1 · ostatnie wpisy przed utratą zasilania (20.11)">
+<rect width="823" height="195" rx="10" fill="#0d1117"/>
+<path d="M0 10a10 10 0 0 1 10-10h803a10 10 0 0 1 10 10v20H0z" fill="#161b22"/>
+<circle cx="18" cy="15" r="5.5" fill="#ff5f57"/>
+<circle cx="36" cy="15" r="5.5" fill="#febc2e"/>
+<circle cx="54" cy="15" r="5.5" fill="#28c840"/>
+<text x="411.5" y="19.5" fill="#8b949e" font-size="12" text-anchor="middle" font-family="JetBrains Mono, Consolas, Menlo, DejaVu Sans Mono, monospace">pve1 · ostatnie wpisy przed utratą zasilania (20.11)</text>
+<g font-family="JetBrains Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" font-size="13" xml:space="preserve">
+<text x="18" y="48"><tspan fill="#7ee787">root@pve1</tspan><tspan fill="#c9d1d9">:</tspan><tspan fill="#79c0ff">~</tspan><tspan fill="#c9d1d9"># journalctl -b -1 -n 3 --no-pager -o short-iso | cut -c1-110</tspan></text>
+<text x="18" y="67" fill="#c9d1d9">2026-11-20T10:07:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max &lt;= 0</text>
+<text x="18" y="86" fill="#c9d1d9">2026-11-20T10:08:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max &lt;= 0</text>
+<text x="18" y="105" fill="#ff7b72">2026-11-20T10:09:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max &lt;= 0</text>
+<text x="18" y="124" fill="#8b949e"># koniec logu – brak zatrzymywania VM i usług</text>
+<text x="18" y="143"><tspan fill="#7ee787">root@pve1</tspan><tspan fill="#c9d1d9">:</tspan><tspan fill="#79c0ff">~</tspan><tspan fill="#c9d1d9"># journalctl --since 2026-01-01 | grep -ciE &#x27;out of memory|oom-kill|killed process&#x27;</tspan></text>
+<text x="18" y="162" fill="#7ee787">0</text>
+</g>
+</svg>

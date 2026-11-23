@@ -1129,6 +1129,12 @@
 Polecenia i wyniki są prawdziwe, zmienione są tylko identyfikatory. Szczegóły:
 <a href="../../about/anonymization/">Zasady anonimizacji</a>.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Zrzuty terminala</p>
+<p>Obrazy wyników to odwzorowanie prawdziwego wyjścia poleceń z konsoli węzłów, wygenerowane
+skryptem <code>scripts/python/make_terminal_shots.py</code> z zanonimizowanych plików w
+<code>docs/assets/screens/src/</code>. Zmienione są tylko nazwy hostów, identyfikatory rozruchów są skrócone.</p>
+</div>
 <h2 id="1-scenariusz">1. Scenariusz<a class="headerlink" href="#1-scenariusz" title="Permanent link">&para;</a></h2>
 <p>Tym razem biorę na tapetę dwa serwery. Są częścią jednego z moich labów: dwuwęzłowy klaster
 Proxmox VE z Ceph. Stoją w sieci wewnętrznej, nie są wystawione do Internetu i <strong>nie mają UPS-a</strong>.
@@ -1224,6 +1230,11 @@ przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów.</p>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>reboot  system boot  6.8.12-4-pve  Fri Nov 20 16:34:43 2026  still running
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>reboot  system boot  6.8.12-4-pve  Wed Nov 18 21:28:10 2026  still running
 </code></pre></div>
+<figure>
+  <img alt="pve1: historia rozruchów i brak wpisów „shutdown”" loading="lazy" src="../../../assets/screens/day004-01-boots.svg" />
+<br />
+<figcaption>pve1: historia rozruchów i brak wpisów „shutdown”</figcaption>
+</figure>
 <p>Dwie rzeczy rzucają się w oczy. Po pierwsze <code>last -x</code> nie zawiera <strong>ani jednego</strong> wpisu <code>shutdown</code>.
 Po drugie stare rozruchy mają status <code>still running</code>. To znaczy, że system nigdy nie zapisał,
 że kończy pracę.</p>
@@ -1251,6 +1262,11 @@ na końcu byłoby zatrzymywanie maszyn i usług.</p>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>-1 0
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>0 0
 </code></pre></div>
+<figure>
+  <img alt="pve1: licznik sekwencji zamykania w każdym rozruchu" loading="lazy" src="../../../assets/screens/day004-02-shutdown-count.svg" />
+<br />
+<figcaption>pve1: licznik sekwencji zamykania w każdym rozruchu</figcaption>
+</figure>
 <p><strong>0 we wszystkich rozruchach.</strong> Ani jednego poprawnego wyłączenia w historii pve1.</p>
 <h3 id="43-czy-zabi-je-system-h1-h2">4.3 Czy zabił je system? (H1, H2)<a class="headerlink" href="#43-czy-zabi-je-system-h1-h2" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>journalctl<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-01-01<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-ciE<span class="w"> </span><span class="s1">'out of memory|oom-kill|killed process'</span>
@@ -1266,6 +1282,11 @@ na końcu byłoby zatrzymywanie maszyn i usług.</p>
 <li>Błędy z poprzedniego rozruchu to wyłącznie start klastra (<code>quorum_initialize failed</code> przez kilka
   sekund, zanim wstał corosync), nic przed końcem pracy.</li>
 </ul>
+<figure>
+  <img alt="pve1: ostatnie wpisy przed utratą zasilania i zero wpisów OOM" loading="lazy" src="../../../assets/screens/day004-03-last-lines.svg" />
+<br />
+<figcaption>pve1: ostatnie wpisy przed utratą zasilania i zero wpisów OOM</figcaption>
+</figure>
 <p>H2 nie znajduje potwierdzenia. Zawieszenie jądra zwykle zostawia ślad (<code>soft lockup</code>, <code>hung task</code>,
 watchdog), a tu log kończy się na zwykłym wpisie.</p>
 <h3 id="44-czy-zatrzyma-je-proxmox-h1">4.4 Czy zatrzymał je Proxmox? (H1)<a class="headerlink" href="#44-czy-zatrzyma-je-proxmox-h1" title="Permanent link">&para;</a></h3>
@@ -1292,6 +1313,11 @@ czy <code>qmshutdown</code>.</strong> HA nie jest skonfigurowane, więc nie ma t
 <p>Pusty wynik. <strong>Żadna VM nie ma <code>onboot: 1</code></strong>, więc <code>startall</code> przy rozruchu nie ma czego
 uruchomić. Stąd objaw „maszyny się wyłączają”. W rzeczywistości padał cały węzeł, a maszyny
 po prostu nie wstawały razem z nim.</p>
+<figure>
+  <img alt="pve1: log zadań – tylko starty, brak autostartu maszyn" loading="lazy" src="../../../assets/screens/day004-04-tasks.svg" />
+<br />
+<figcaption>pve1: log zadań – tylko starty, brak autostartu maszyn</figcaption>
+</figure>
 <h3 id="46-porownanie-obu-wezow-h3">4.6 Porównanie obu węzłów (H3)<a class="headerlink" href="#46-porownanie-obu-wezow-h3" title="Permanent link">&para;</a></h3>
 <p>Te same polecenia na pve2:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ssh<span class="w"> </span>root@pve2<span class="w"> </span><span class="s1">'journalctl --list-boots --no-pager | tail -8'</span>
@@ -1338,6 +1364,11 @@ po prostu nie wstawały razem z nim.</p>
 </tr>
 </tbody>
 </table>
+<figure>
+  <img alt="pve2: historia rozruchów – starty w tych samych minutach co pve1" loading="lazy" src="../../../assets/screens/day004-05-pve2-boots.svg" />
+<br />
+<figcaption>pve2: historia rozruchów – starty w tych samych minutach co pve1</figcaption>
+</figure>
 <p><strong>Starty co do minuty, w każdym przypadku.</strong> Dwa niezależne komputery nie uruchamiają się
 w tej samej minucie przypadkiem. Albo włącza je jedna osoba, albo wraca im jednocześnie prąd
 (BIOS z opcją włączenia po powrocie zasilania).</p>
@@ -1349,6 +1380,11 @@ sprawdziłem, co pve1 widział przed swoim końcem:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>09:17:01 CRON[565736]: (root) CMD (cd / &amp;&amp; run-parts --report /etc/cron.hourly)
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>09:28:32 pmxcfs[923]: [dcdb] notice: data verification successful
 </code></pre></div>
+<figure>
+  <img alt="pve1: brak śladu utraty pve2 w corosync przed końcem pracy" loading="lazy" src="../../../assets/screens/day004-06-before-crash.svg" />
+<br />
+<figcaption>pve1: brak śladu utraty pve2 w corosync przed końcem pracy</figcaption>
+</figure>
 <p>O 09:28:32 <strong>oba</strong> węzły zapisały ten sam cykliczny wpis <code>pmxcfs</code>, a potem do końca pracy
 pve1 logował już tylko ceph-mgr. Gdyby pve2 padł o 09:28, pve1 zapisałby utratę sąsiada:
 zmianę członkostwa w corosync i utratę quorum. Takich wpisów nie ma. pve2 po prostu nic więcej

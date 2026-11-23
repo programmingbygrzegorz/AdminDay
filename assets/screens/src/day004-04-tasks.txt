@@ -1,0 +1,17 @@
+pve1 · log zadań Proxmoxa: start/stop maszyn
+$ pve1 grep -hE 'qmstop|qmshutdown|stopall|startall|qmstart' /var/log/pve/tasks/index | tail -12 \
+  | while IFS=: read -r _ n _ _ t ty id u rest; do
+      echo "$(date -d @$((16#$t)) '+%F %T') $n $ty $id $u ${rest##* }"; done
+2026-01-08 20:30:51 pve1 startall      root@pam OK
+2026-01-08 20:38:35 pve1 qmstart  110  root@pam OK
+2026-01-08 20:38:38 pve1 qmstart  111  root@pam OK
+2026-02-03 14:20:46 pve1 startall      root@pam OK
+2026-05-20 20:27:33 pve1 startall      root@pam OK
+2026-06-01 18:51:00 pve1 startall      root@pam OK
+2026-06-13 13:38:03 pve1 startall      root@pam OK
+2026-06-13 14:30:20 pve1 startall      root@pam OK
+2026-11-18 21:28:26 pve1 startall      root@pam OK
+2026-11-20 16:35:29 pve1 startall      root@pam OK
+~# ani jednego qmstop / qmshutdown
+$ pve1 grep -h onboot /etc/pve/nodes/*/qemu-server/*.conf
+!(pusto – żadna VM nie ma autostartu)

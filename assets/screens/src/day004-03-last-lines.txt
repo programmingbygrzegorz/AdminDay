@@ -1,0 +1,8 @@
+pve1 · ostatnie wpisy przed utratą zasilania (20.11)
+$ pve1 journalctl -b -1 -n 3 --no-pager -o short-iso | cut -c1-110
+2026-11-20T10:07:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max <= 0
+2026-11-20T10:08:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max <= 0
+!2026-11-20T10:09:29+0100 pve1 ceph-mgr[1047]: ... calc_pg_upmaps abort due to max <= 0
+~# koniec logu – brak zatrzymywania VM i usług
+$ pve1 journalctl --since 2026-01-01 | grep -ciE 'out of memory|oom-kill|killed process'
++0
