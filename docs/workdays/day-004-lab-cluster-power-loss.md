@@ -10,12 +10,12 @@ tags: [lab, proxmox, ceph, journald, zasilanie, ups, nut, diagnostyka]
 <span class="ad-pill hot">nieplanowane wyłączenia</span>
 <span class="ad-pill">lab · przypadek rzeczywisty</span>
 <span class="ad-pill ok">przyczyna zawężona: zasilanie</span>
-<span class="ad-pill warn">do potwierdzenia na UPS</span>
+<span class="ad-pill warn">brak UPS</span>
 </div>
 
 <div class="ad-kpis">
 <div class="ad-kpi hot"><small>nieczyste zakończenia pracy</small><b>7 / 7</b><span>każdy poprzedni rozruch pve1 urwany bez zamknięcia systemu</span></div>
-<div class="ad-kpi warn"><small>komunikacja z UPS</small><b>brak</b><span>ani NUT, ani apcupsd na żadnym węźle</span></div>
+<div class="ad-kpi warn"><small>ochrona zasilania</small><b>brak</b><span>bez UPS-a, oba węzły z jednego obwodu</span></div>
 <div class="ad-kpi ok"><small>OOM / panic / błędy sprzętu</small><b>0</b><span>w logach z całego roku</span></div>
 <div class="ad-kpi ok"><small>zmiany w trakcie diagnozy</small><b>0</b><span>tylko polecenia do odczytu</span></div>
 </div>
@@ -28,8 +28,8 @@ tags: [lab, proxmox, ceph, journald, zasilanie, ups, nut, diagnostyka]
 ## 1. Scenariusz
 
 Tym razem biorę na tapetę dwa serwery. Są częścią jednego z moich labów: dwuwęzłowy klaster
-Proxmox VE z Ceph. Stoją w sieci wewnętrznej, nie są wystawione do Internetu i są podłączone
-do UPS-a. Mimo to w ostatnim czasie co jakiś czas **same się wyłączały**, a po powrocie
+Proxmox VE z Ceph. Stoją w sieci wewnętrznej, nie są wystawione do Internetu i **nie mają UPS-a**.
+W ostatnim czasie co jakiś czas **same się wyłączały**, a po powrocie
 maszyny wirtualne zostawały zatrzymane.
 
 Podejrzenie wzbudziło to, że **wyłączały się oba**. Pojedynczy serwer może mieć swoją
@@ -44,8 +44,8 @@ w konfiguracji, wyłącznie na odczycie.
 
 ```mermaid
 flowchart LR
-  UPS["UPS<br/>(brak połączenia danych z serwerami)"] ==> P1
-  UPS ==> P2
+  PWR["Gniazdko / listwa<br/>(bez UPS)"] ==> P1
+  PWR ==> P2
   subgraph K["Klaster Proxmox VE 8.3 (2 węzły, corosync)"]
     P1["pve1<br/>Ceph: MON, MGR, 2× OSD"]
     P2["pve2<br/>Ceph: MON, 1× OSD"]
@@ -55,14 +55,14 @@ flowchart LR
   P2 --- V2["VM: testowa"]
 ```
 
-<figcaption>Oba węzły zasilane z tego samego UPS-a. Serwery nie mają z nim połączenia
-danych (USB/sieć), więc nie wiedzą, że pracują na baterii.</figcaption>
+<figcaption>Oba węzły zasilane z tego samego obwodu, bez UPS-a. Każda przerwa w zasilaniu
+gasi je natychmiast i jednocześnie.</figcaption>
 </figure>
 
 - **Węzły:** pve1, pve2: Proxmox VE 8.3 (Debian 12), 4 rdzenie, ~8 GB RAM każdy.
 - **Klaster:** 2 węzły, 2 głosy, corosync/knet. Storage współdzielony: Ceph (3 OSD, pula RBD).
 - **Maszyny:** firewall i SIEM na pve1, maszyna testowa na pve2.
-- **Zasilanie:** wspólny UPS.
+- **Zasilanie:** wspólny obwód, bez UPS-a.
 - **Dostęp:** konsola roota w panelu Proxmoxa, SSH między węzłami.
 
 ## 3. Problem
@@ -82,7 +82,7 @@ Trzy hipotezy na start:
 ## 4. Diagnostyka
 
 Szedłem od ogółu do szczegółu: historia rozruchów → sposób zakończenia każdego rozruchu →
-przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów → komunikacja z UPS.
+przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów.
 
 ### Przebieg w skrócie
 
@@ -92,7 +92,6 @@ przyczyny po stronie jądra i Proxmoxa → porównanie obu węzłów → komunik
 <li><b>Jądro czyste</b><span>Brak OOM, panic, MCE, przegrzania i błędów dysków.</span></li>
 <li><b>Proxmox niczego nie zatrzymał</b><span>W logu zadań tylko starty. Ani jednego <code>qmstop</code>.</span></li>
 <li class="hot"><b>Oba węzły padają i wstają razem</b><span>Te same minuty startu, brak śladu utraty sąsiada w corosync.</span></li>
-<li class="hot"><b>Serwery nie rozmawiają z UPS-em</b><span>Brak NUT/apcupsd, brak UPS-a na USB.</span></li>
 <li class="ok"><b>Maszyny nie wstają, bo nie mają autostartu</b><span>Brak <code>onboot</code> we wszystkich VM.</span></li>
 </ul>
 
@@ -264,48 +263,23 @@ Wyróżniają się tylko dwa dzisiejsze rozruchy pve2 (17:45 i 17:47). To były 
 poprawne restarty („Bulk shutdown”), z sekwencją zamykania w logu. Dla porównania: rozruch
 zakończony 20.11 ma tam 0 takich wpisów.
 
-### 4.7 A co z UPS-em?
-
-Serwery są podpięte do UPS-a, a mimo to padają bez zamknięcia systemu. Sprawdzenie,
-czy węzły w ogóle wiedzą o UPS-ie:
-
-```bash
-dpkg -l | grep -E '^ii +(nut|nut-client|nut-server|apcupsd) '
-lsusb
-systemctl is-active nut-monitor apcupsd
-```
-
-```text
-## pve1
-Bus 003 Device 002: ID 0781:55ae SanDisk Corp. Extreme 55AE
-inactive
-inactive
-## pve2
-Bus 003 Device 003: ID 04e8:61f5 Samsung Electronics Co., Ltd Portable SSD T5
-inactive
-inactive
-```
-
-Na USB są tylko dyski. **Nie ma oprogramowania UPS (NUT, apcupsd) ani połączenia
-z UPS-em.** Serwery nie dostają informacji „praca na baterii” ani „niski stan baterii”,
-więc nie mają jak się zamknąć. Gdy UPS przestaje podawać napięcie, odcina oba naraz.
-
 ## 5. Przyczyna
 
 !!! danger "Root cause (najbardziej prawdopodobna)"
-    **Oba węzły tracą zasilanie jednocześnie, za UPS-em.** Każdy rozruch kończy się bez
-    sekwencji zamykania, w logach nie ma OOM, panic ani błędów sprzętu, Proxmox nie wydał
-    żadnego polecenia zatrzymania, a węzły startują w tej samej minucie.
+    **Oba węzły tracą zasilanie jednocześnie.** Każdy rozruch kończy się bez sekwencji
+    zamykania, w logach nie ma OOM, panic ani błędów sprzętu, Proxmox nie wydał żadnego
+    polecenia zatrzymania, a węzły startują w tej samej minucie.
 
-    Serwery nie mają połączenia z UPS-em (brak NUT), więc przy dłuższym zaniku prądu pracują
-    na baterii do jej wyczerpania i gasną twardo. Możliwe też, że UPS sam odcina wyjście:
-    zużyta bateria, przeciążenie, test baterii lub przełączanie przy wahaniach napięcia.
+    Serwery nie mają UPS-a, więc każda przerwa w zasilaniu wyłącza je natychmiast i bez
+    zamknięcia systemu: chwilowy zanik lub spadek napięcia w sieci, zadziałanie bezpiecznika
+    albo różnicówki, wyłączenie lub uszkodzenie wspólnej listwy.
 
     **Dlaczego VM „się wyłączają”:** żadna maszyna nie ma `onboot`, więc po powrocie zasilania
     węzły wstają, a maszyny zostają zatrzymane.
 
-Czego **nie** potwierdzam z samych serwerów: co dokładnie zrobił UPS. To wymaga jego
-dziennika zdarzeń (panel/oprogramowanie producenta) albo podłączenia przez NUT.
+Czego **nie** potwierdzam z samych serwerów: co dokładnie przerwało zasilanie. Do sprawdzenia:
+czy w tych dniach były zaniki prądu w budynku, czy coś innego w tym samym obwodzie też się
+wyłączało, oraz stan listwy i wtyczek.
 
 ## 6. Rozwiązanie
 
@@ -317,14 +291,15 @@ Brak zmian w trakcie diagnozy. Wszystkie polecenia były tylko do odczytu.
 
 | Priorytet | Zmiana | Efekt |
 |---|---|---|
-| 1 | Odczytać dziennik zdarzeń UPS-a, sprawdzić stan baterii, obciążenie i datę ostatniej wymiany | potwierdzenie lub obalenie hipotezy, wybór: wymiana baterii / większy UPS |
-| 1 | Połączyć UPS z jednym węzłem (USB) i zainstalować **NUT** (`nut-server`), na drugim węźle `nut-client` | przy niskiej baterii oba węzły zamykają się poprawnie, Ceph i maszyny bez ryzyka uszkodzenia |
+| 1 | Sprawdzić obwód: listwę, wtyczki, bezpiecznik, czy zaniki pokrywają się z innymi urządzeniami w domu | potwierdzenie przyczyny |
+| 1 | **UPS** dla obu węzłów (line-interactive, z portem USB) | krótkie zaniki i spadki napięcia przestają wyłączać serwery |
+| 1 | **NUT**: UPS przez USB do jednego węzła (`nut-server`), drugi węzeł jako `nut-client` | przy dłuższym zaniku oba węzły zamykają się poprawnie, Ceph i VM bez ryzyka uszkodzenia |
 | 1 | Autostart maszyn: `qm set <vmid> --onboot 1 --startup order=N` (firewall pierwszy) | po powrocie zasilania usługi wstają same |
 | 2 | Sprawdzić w BIOS-ie *Restore on AC Power Loss* na obu węzłach | świadoma decyzja, czy węzły mają startować same |
-| 2 | Alert w monitoringu (Zabbix) na restart węzła i na stan UPS z NUT | informacja o zdarzeniu w chwili, gdy się dzieje, a nie gdy ktoś zauważy wyłączoną VM |
+| 2 | Alert w monitoringu (Zabbix) na restart węzła, później też na stan UPS z NUT | informacja o zdarzeniu od razu, a nie gdy ktoś zauważy wyłączoną VM |
 | 3 | Trzeci głos w klastrze (QDevice) | przy awarii jednego węzła drugi zachowuje quorum |
 
-Przykład konfiguracji NUT do wdrożenia (węzeł z kablem USB):
+Przykład konfiguracji NUT po zakupie UPS-a (węzeł z kablem USB):
 
 ```bash
 apt install nut
@@ -332,7 +307,7 @@ nut-scanner -U                       # wykrycie UPS-a na USB
 # /etc/nut/nut.conf:     MODE=netserver
 # /etc/nut/ups.conf:     [ups] driver=usbhid-ups port=auto
 # /etc/nut/upsd.conf:    LISTEN 0.0.0.0 3493   (żeby drugi węzeł mógł się podłączyć)
-# /etc/nut/upsd.users:   użytkownik dla upsmon (master) i dla drugiego węzła (slave)
+# /etc/nut/upsd.users:   użytkownik dla upsmon (primary) i dla drugiego węzła (secondary)
 # /etc/nut/upsmon.conf:  MONITOR ups@localhost 1 <użytkownik> <hasło> primary
 systemctl restart nut-server nut-monitor
 upsc ups@localhost                  # stan baterii, obciążenie, status OL/OB/LB
@@ -342,8 +317,8 @@ Na drugim węźle `MODE=netclient` i `MONITOR ups@<węzeł-z-UPS> 1 <użytkownik
 
 ## 7. Weryfikacja (po wdrożeniu)
 
-- [ ] `upsc` na obu węzłach pokazuje status `OL` (zasilanie z sieci)
-- [ ] test: odłączenie UPS-a od gniazdka → status `OB`, zdarzenie w logu i w monitoringu
+- [ ] UPS zainstalowany, `upsc` na obu węzłach pokazuje status `OL` (zasilanie z sieci)
+- [ ] test: odłączenie UPS-a od gniazdka → serwery działają dalej, status `OB`, zdarzenie w logu i w monitoringu
 - [ ] test kontrolowanego zamknięcia (`upsmon -c fsd`) → w logu `System is powering down`
 - [ ] po włączeniu węzłów maszyny startują same, w ustalonej kolejności
 - [ ] w kolejnych tygodniach: każdy koniec rozruchu ma sekwencję zamykania
@@ -358,8 +333,8 @@ Na drugim węźle `MODE=netclient` i `MONITOR ups@<węzeł-z-UPS> 1 <użytkownik
   sprawę szybciej niż szukanie usterki w każdym z osobna.
 - **Pozorne różnice w czasie trzeba sprawdzić.** pve2 „kończył” 40 minut wcześniej tylko
   dlatego, że był cichszy w logach. Brak wpisów corosync o utracie sąsiada to rozstrzygnął.
-- **UPS bez połączenia z serwerem chroni tylko przed krótkimi przerwami.** Bez NUT serwer
-  nie wie, że bateria się kończy, i gaśnie tak samo jak bez UPS-a, tylko później.
+- **Klaster bez UPS-a to dwa serwery z jednym wspólnym wyłącznikiem.** Redundancja węzłów
+  nic nie daje, gdy oba wiszą na tej samej listwie. UPS z NUT to pierwszy zakup do takiego labu.
 - **Autostart maszyn to konfiguracja, o której łatwo zapomnieć.** Bez `onboot` każda przerwa
   w zasilaniu zamienia się w ręczną interwencję.
 
@@ -369,4 +344,3 @@ Na drugim węźle `MODE=netclient` i `MONITOR ups@<węzeł-z-UPS> 1 <użytkownik
 - Licznik sekwencji zamykania = 0 dla wszystkich poprzednich rozruchów pve1.
 - Log zadań Proxmoxa: wyłącznie `startall` i `qmstart`, brak `qmstop`/`qmshutdown`.
 - Brak wpisów OOM w całym roku i brak błędów jądra przed końcem rozruchów.
-- Brak pakietów NUT/apcupsd i brak UPS-a na liście urządzeń USB.

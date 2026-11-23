@@ -8,4 +8,4 @@ Wpisy pogrupowane według obszaru.
 
 ## Wirtualizacja i zasilanie
 
-- [Day 004 – Oba serwery labu wyłączają się same](../workdays/day-004-lab-cluster-power-loss.md): Proxmox VE, journald, UPS bez NUT, autostart maszyn
+- [Day 004 – Oba serwery labu wyłączają się same](../workdays/day-004-lab-cluster-power-loss.md): Proxmox VE, journald, brak UPS, autostart maszyn
